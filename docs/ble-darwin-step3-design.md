@@ -1,6 +1,13 @@
 # picoruby-ble Darwin step3 設計 — CoreBluetooth → BTstack バイト合成シム（central/observer v1）
 
-最終更新: 2026-06-17。状態: **設計確定・検証済み（verdict=sound, blocking issue 0）。実装未着手。**
+最終更新: 2026-06-19。状態: **実装完了・実機 E2E PASS。これは実装前プランであり、実装中に下記の点で乖離した。乖離点は本書よりコード（`mrbgems/picoruby-ble/`）が source of truth。**
+
+> **実装との乖離（本書 §threading / §ファイル変更計画 の記述は古い）**:
+> - **drain hook の置き場**: 本書は `mrblib/ble.rb` の poll loop に `__darwin_drain` を 1 行足す案だが、実装は中立 Ruby を汚さないため drain を shared C の `mrb_pop_packet` 内 `#ifdef PICORB_PLATFORM_DARWIN` に置く。`mrblib/ble.rb` は無変更。単独 method `__darwin_drain` は無い。
+> - **FIFO の実体**: 本書は C `ports/darwin/ble_event_bridge.c` 案だが、実装は Swift `PicoBLEFifo.swift`（C は `pble_drain_one` で引く）。oversize packet は drop+log（head-of-line stall 回避）。
+> - **gate define**: `PICORB_BLE_DARWIN` でなく **`PICORB_PLATFORM_DARWIN`**（他 gem 慣習に統一）。`build_config/default.rb` が macOS host で定義。
+> - **削除済み**: `pble_darwin_probe`（step2 link 証明）と `con_handle`（darwin 未参照）は死にコードとして除去。
+> - **service end_handle**: **0xFF 固定でなく実 pre-order-DFS subtree end**（複数 service で `:169` first-match の誤格納を避けるため）。本書 §25/§59/§90 の 0xFF 記述は誤り。
 
 13-agent workflow（Understand 5 reader → Design 3 案 → Judge 3 lens → Synthesize → 敵対的 Verify）が picoruby-ble の実コードを行番号付きで精査して確定した設計。HANDOFF.md の step3 叩き台仕様の誤りはすべて本書で訂正済み。コードのパスは worktree `picoruby-ble-apple_silicon-port` の `mrbgems/picoruby-ble/` 配下。
 
