@@ -102,6 +102,83 @@ task :run do
   end
 end
 
+desc "Build a single binary embedding APP=path/to/app.rb (NAME defaults to APP basename)"
+task single: :setup do
+  app = ENV["APP"] or abort "APP=path/to/app.rb is required"
+  abort "APP not found: #{app}" unless File.file?(app)
+  name = (ENV["NAME"] || File.basename(app, ".rb")).downcase
+  abort "NAME must match /\\A[a-z][a-z0-9_-]*\\z/ (got: #{name.inspect})" unless name =~ /\A[a-z][a-z0-9_-]*\z/
+
+  staging = File.join(R2P2_MACOS_ROOT, "tmp", "single")
+  gem_dir = File.join(staging, "picoruby-bin-#{name}")
+  rm_rf staging
+  mkdir_p File.join(gem_dir, "mrblib")
+  mkdir_p File.join(gem_dir, "tools", name)
+
+  File.write(File.join(gem_dir, "mrbgem.rake"), <<~MRBGEM)
+    MRuby::Gem::Specification.new('picoruby-bin-#{name}') do |spec|
+      spec.license = 'MIT'
+      spec.author  = ''
+      spec.summary = 'PicoRuby single-binary built by R2P2-macOS rake single'
+
+      spec.add_dependency 'picoruby-mruby'
+
+      bin_name = '#{name}'
+      build.bins << bin_name
+
+      main_src = "\#{spec.dir}/tools/\#{bin_name}/\#{bin_name}.c"
+      bin_obj  = objfile(main_src.pathmap("\#{build_dir}/tools/\#{bin_name}/%n"))
+
+      file bin_obj => [main_src] do |t|
+        build.cc.run t.name, main_src
+      end
+
+      file exefile("\#{build.build_dir}/bin/\#{bin_name}") => [bin_obj, build.libmruby_static] do |f|
+        build.linker.run f.name, f.prerequisites
+      end
+    end
+  MRBGEM
+
+  cp app, File.join(gem_dir, "mrblib", "app.rb")
+
+  File.write(File.join(gem_dir, "tools", name, "#{name}.c"), <<~C_MAIN)
+    #include <stdio.h>
+    #include <stdint.h>
+
+    #if !defined(PICORB_PLATFORM_POSIX)
+    #define PICORB_PLATFORM_POSIX 1
+    #endif
+
+    #include "picoruby.h"
+
+    #ifndef HEAP_SIZE
+    #define HEAP_SIZE (1024 * 2000)
+    #endif
+
+    static uint8_t vm_heap[HEAP_SIZE] __attribute__((aligned(16)));
+
+    mrb_state *global_mrb = NULL;
+
+    int main(int argc, char **argv) {
+      (void)argc;
+      mrb_state *vm = NULL;
+      picorb_vm_init();
+      mrb_close(vm);
+      return 0;
+    }
+  C_MAIN
+
+  single_cfg = File.join(R2P2_MACOS_ROOT, "build_config", "r2p2-picoruby-darwin-single.rb")
+  env = build_env.merge(
+    "MRUBY_CONFIG"         => File.absolute_path(single_cfg),
+    "R2P2_SINGLE_GEM_PATH" => gem_dir,
+  )
+  sh env, "cd #{PICORUBY_SRC.shellescape} && rake"
+
+  puts ""
+  puts "Single binary built: #{File.join(BUILD_DIR, "host", "bin", name)}"
+end
+
 desc "Remove build output (keeps vendor/picoruby)"
 task :clean do
   rm_rf BUILD_DIR

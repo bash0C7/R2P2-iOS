@@ -79,14 +79,43 @@ To rebuild after editing the picoruby tree (e.g. switching branches):
 PICORUBY_REPO=... PICORUBY_REF=... rake refresh build
 ```
 
+### Single binary build
+
+`rake single` builds one executable that embeds a Ruby script as the program
+it runs. The script lives inside the binary, so the file is portable: copy
+it elsewhere and it still runs.
+
+```
+rake single APP=path/to/app.rb        # ./build/host/bin/<basename-of-app>
+rake single APP=path/to/app.rb NAME=mybin   # ./build/host/bin/mybin
+```
+
+Internals: the task generates a throwaway `mrbgems/picoruby-bin-<NAME>/` gem
+under `tmp/single/` whose `mrblib/app.rb` is the user's script, then builds
+the picoruby tree with `build_config/r2p2-picoruby-darwin-single.rb`. The
+build config drops the REPL/shell bins, expands `minimum` (compiler + mrbc +
+VM), and includes `mruby-posix`, `core`, `stdlib` gemboxes — enough for
+common scripts. For networking, fonts, native extensions, or anything else,
+copy the build config and add the gems you need.
+
+A hello-world example:
+
+```
+echo 'puts "Hello from picoruby single binary"' > /tmp/hello.rb
+rake single APP=/tmp/hello.rb
+./build/host/bin/hello                # Hello from picoruby single binary
+```
+
 ## Layout
 
 ```
 R2P2-macOS/
-  Rakefile                          setup / check / build / run / clean / clobber
+  Rakefile                          setup / check / build / run / clean / clobber / single
   build_config/
     r2p2-picoruby-darwin.rb         Darwin host base (used by Standard build)
-    r2p2-picoruby-darwin-ble.rb     base + picoruby-ble opt-in (used by Example)
+    r2p2-picoruby-darwin-ble.rb     base + picoruby-ble opt-in (used by BLE Example)
+    r2p2-picoruby-darwin-single.rb  base minus REPL/shell bins (used by rake single)
   vendor/picoruby/                  fetched by rake setup (gitignored)
   build/                            build output, MRUBY_BUILD_DIR (gitignored)
+  tmp/single/                       throwaway bin gem generated per rake single (gitignored)
 ```
