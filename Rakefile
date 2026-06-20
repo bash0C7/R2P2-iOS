@@ -1,20 +1,20 @@
-# R2P2-macOS — staging harness for Darwin-native picoruby builds.
+# R2P2-macOS — host-side build harness for picoruby on Darwin.
 #
 # Fetches a picoruby tree from GitHub into vendor/picoruby and builds it on a
-# macOS (Darwin) host. The picoruby source to build is selectable; pass an
-# MRUBY_CONFIG to the bundled build_config/r2p2-picoruby-darwin.rb (which adds
-# picoruby-ble + the CoreBluetooth Darwin port) when the picoruby tree carries
-# the Darwin port. Build output is redirected into ./build via MRUBY_BUILD_DIR
-# so the fetched source stays pristine.
+# macOS host. Build output is redirected into ./build via MRUBY_BUILD_DIR so
+# the fetched source stays pristine.
 #
 #   PICORUBY_REPO  default https://github.com/picoruby/picoruby.git
 #   PICORUBY_REF   default master
-#   MRUBY_CONFIG   optional path; absent → the picoruby tree's own default.rb
+#   MRUBY_CONFIG   default build_config/r2p2-picoruby-darwin.rb (Darwin host
+#                  base). Override to point at the BLE variant or another
+#                  bundled config.
 #
-# This repo's job ends once the Darwin port + a matching build_config land
-# upstream. Until then it pins the per-host prerequisites (Xcode CLT, brew
-# openssl@3, Swift toolchain) via `rake check` and ships the Darwin build
-# config under build_config/.
+# Why this repo: picoruby/picoruby ships per-target build_config files
+# (r2p2-picoruby-pico2.rb etc.) but as of 2026-06-20 has no equivalent for a
+# Darwin host. Until that lands upstream, R2P2-macOS stores the Darwin host
+# build config and pins the per-host prerequisites (Xcode CLT, brew openssl@3,
+# Swift toolchain) via `rake check`.
 
 require "shellwords"
 
@@ -34,9 +34,8 @@ def build_env
     env["LDFLAGS"] = [ENV["LDFLAGS"], "-L#{ssl}/lib"].compact.join(" ")
     env["CFLAGS"]  = [ENV["CFLAGS"],  "-I#{ssl}/include"].compact.join(" ")
   end
-  if (cfg = ENV["MRUBY_CONFIG"])
-    env["MRUBY_CONFIG"] = File.absolute_path(cfg)
-  end
+  cfg = ENV["MRUBY_CONFIG"] || File.join(R2P2_MACOS_ROOT, "build_config", "r2p2-picoruby-darwin.rb")
+  env["MRUBY_CONFIG"] = File.absolute_path(cfg)
   env
 end
 

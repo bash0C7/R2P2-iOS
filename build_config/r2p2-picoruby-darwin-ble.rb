@@ -1,9 +1,9 @@
-# Darwin host build for picoruby. Sets PICORB_PLATFORM_DARWIN (the
-# identity macro upstream master does not yet define) and links the
-# Homebrew openssl@3 prefix that the networking gembox needs.
+# Darwin host build for picoruby with the picoruby-ble CoreBluetooth port
+# opted in. Used by the BLE Example in README.md.
 #
-# Mirrors picoruby/picoruby's per-target build_config naming convention
-# (e.g. build_config/r2p2-picoruby-pico2.rb).
+# Requires a picoruby tree that carries mrbgems/picoruby-ble/ports/darwin/
+# (e.g. https://github.com/bash0C7/picoruby.git branch picoruby-ble-darwin-port,
+# as of 2026-06-20). picoruby-picotest is included so the port's tests can run.
 
 MRuby::Build.new do |conf|
   conf.toolchain :gcc
@@ -32,4 +32,6 @@ MRuby::Build.new do |conf|
   conf.gem core: "picoruby-shinonome"
   conf.gem core: "picoruby-bin-picoruby"
   conf.gem core: "picoruby-bin-r2p2"
+  conf.gem core: "picoruby-ble"
+  conf.gem core: "picoruby-picotest"
 end
