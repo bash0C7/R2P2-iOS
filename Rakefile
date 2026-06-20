@@ -1,4 +1,5 @@
 require "shellwords"
+require "rbconfig"
 
 ROOT          = __dir__
 PICORUBY_REPO = ENV["PICORUBY_REPO"] || "https://github.com/picoruby/picoruby.git"
@@ -11,6 +12,36 @@ BUNDLE_ID     = "com.bash0c7.picoruby.PicoRubyRunner"
 
 def mruby_env(cfg)
   { "MRUBY_BUILD_DIR" => BUILD_DIR, "MRUBY_CONFIG" => File.absolute_path(cfg) }
+end
+
+# picoruby vendors mruby, which vendors prism (mrbgems/mruby-compiler-prism).
+# That prism checkout ships its templates but NOT the files they generate;
+# include/prism/diagnostic.h in particular is produced by templates/template.rb.
+# The host mrbc tool (built by picoruby's build_mrbc_exec hook) compiles this
+# prism during the presym scan, which runs before any mrbgem.rake gets a chance
+# to fire the generator — so on a clean clone the header is missing and the
+# build aborts. Generate it here, right after fetch, so it always exists before
+# the first build. Idempotent: the generator overwrites with identical content,
+# and we skip entirely when the header is already present (e.g. a future
+# picoruby that generates it itself) or when the template layout has moved.
+PRISM_TEMPLATE_DIR = File.join(
+  PICORUBY_SRC,
+  "mrbgems", "picoruby-mruby", "lib", "mruby",
+  "mrbgems", "mruby-compiler-prism", "lib", "prism"
+)
+
+def generate_prism_templates
+  template = File.join(PRISM_TEMPLATE_DIR, "templates", "template.rb")
+  generated = File.join(PRISM_TEMPLATE_DIR, "include", "prism", "diagnostic.h")
+  unless File.exist?(template)
+    puts "prism templates: template.rb absent (#{template}); skipping"
+    return
+  end
+  if File.exist?(generated)
+    puts "prism templates: diagnostic.h already present; skipping"
+    return
+  end
+  sh "cd #{PRISM_TEMPLATE_DIR.shellescape} && #{RbConfig.ruby.shellescape} templates/template.rb"
 end
 
 desc "Verify iOS build prerequisites"
@@ -34,6 +65,7 @@ task :setup do
     sh "git clone --recursive --branch #{PICORUBY_REF.shellescape} " \
        "#{PICORUBY_REPO.shellescape} #{PICORUBY_SRC.shellescape}"
   end
+  generate_prism_templates
 end
 
 desc "Re-fetch PICORUBY_REF into the existing vendor/picoruby"
@@ -42,6 +74,7 @@ task :refresh do
   sh "git -C #{PICORUBY_SRC.shellescape} fetch #{PICORUBY_REPO.shellescape} #{PICORUBY_REF.shellescape}"
   sh "git -C #{PICORUBY_SRC.shellescape} checkout -B #{PICORUBY_REF.shellescape} FETCH_HEAD"
   sh "git -C #{PICORUBY_SRC.shellescape} submodule update --init --recursive"
+  generate_prism_templates
 end
 
 namespace :ios do
