@@ -154,8 +154,18 @@ void *vm_open(const char *boot_src) {
   mrc_ccontext_filename(cc, "main");
   const uint8_t *u = (const uint8_t *)combined;
   mrc_irep *irep = mrc_load_string_cxt(cc, &u, strlen(combined));
-  if (irep == NULL) { print_diagnostics(cc); }
-  else { run_irep(mrb, cc, irep); }
+  if (irep == NULL) {
+    /* The boot Ruby is bundled and fixed, so a compile failure is a build-time
+     * bug. Treat it as fatal rather than handing back a VM whose $app is nil. */
+    print_diagnostics(cc);
+    mrc_ccontext_free(cc);
+    free(combined);
+    mrb_close(mrb);
+    global_mrb = NULL;
+    free(heap);
+    return NULL;
+  }
+  run_irep(mrb, cc, irep);
   mrc_ccontext_free(cc);
   free(combined);
   vm_handle *h = (vm_handle *)malloc(sizeof(vm_handle));
@@ -172,6 +182,12 @@ char *vm_call(void *vm, const char *method, const char *arg) {
   if (cap == NULL) return NULL;
   fflush(stdout); fflush(stderr);
   int saved_out = dup(1), saved_err = dup(2);
+  if (saved_out < 0 || saved_err < 0) {
+    if (saved_out >= 0) close(saved_out);
+    if (saved_err >= 0) close(saved_err);
+    fclose(cap);
+    return NULL;
+  }
   dup2(fileno(cap), 1); dup2(fileno(cap), 2);
 
   int ai = mrb_gc_arena_save(mrb);

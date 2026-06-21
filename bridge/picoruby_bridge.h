@@ -9,7 +9,8 @@ char *repl_eval(const char *src);
 
 /* Persistent VM. vm_open allocates a heap, opens a VM, and runs boot_src
  * (which should define classes and assign a dispatcher object to the global
- * $app). Returns an opaque handle, or NULL on failure. vm_call invokes
+ * $app). Returns NULL on allocation failure OR if boot_src fails to compile,
+ * otherwise an opaque handle. vm_call invokes
  * `method` on $app with a single String argument `arg`, returning captured
  * stdout+stderr as a malloc'd string the caller must free() (NULL on setup
  * failure). vm_close tears the VM down. All three MUST be called from one
