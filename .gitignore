@@ -2,8 +2,8 @@
 /vendor/
 # build output
 /build/
-# staged lib + headers + generated project
-/app/Vendor/
-/app/*.xcodeproj
+# staged lib + headers + generated project (per example)
+/examples/*/Vendor/
+/examples/*/*.xcodeproj
 # process docs
 /docs/superpowers/
