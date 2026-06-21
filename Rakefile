@@ -301,6 +301,15 @@ namespace :ios do
 
     desc "Full Virtual Peripheral Simulator pipeline: lib -> gen -> build -> run"
     task all: [:lib, :gen, :build, :run]
+
+    desc "Build+run the macOS BLE central helper (scan PBLE-TEST, connect, write WRITE_HEX, read/subscribe) to exercise the peripheral from the Mac"
+    task :write do
+      src = File.join(VPERIPH_DIR, "tools", "ble_write.swift")
+      bin = File.join(ROOT, "build", "ble_write")
+      sh "swiftc -O #{src.shellescape} -o #{bin.shellescape}"
+      # WRITE_HEX / TARGET_NAME / APP_SERVICES pass through the environment.
+      sh bin.shellescape
+    end
   end
 
   desc "Generate the Xcode project from project.yml"
