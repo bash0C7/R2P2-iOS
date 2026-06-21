@@ -4,18 +4,6 @@
 # ios-sim libmruby.a can run. Toolchain is host-appropriate (plain MRuby::Build,
 # no -arch/-isysroot). PICORB_PLATFORM_POSIX is dropped to mirror ios-sim for
 # maximum parity (it builds clean on the host without it).
-# vendor/picoruby (upstream master) defines build.posix?/wasm? but NOT darwin?.
-# The bash0C7 fork adds darwin? (== PICORB_PLATFORM_DARWIN defined) and the
-# picoruby-ble Darwin port's mrbgem.rake gates on it. Provide the predicate here
-# so the upstream-master base can host the fork's BLE gem unchanged.
-module MRuby
-  class Build
-    def darwin?
-      cc.defines.include?("PICORB_PLATFORM_DARWIN")
-    end unless method_defined?(:darwin?)
-  end
-end
-
 MRuby::Build.new("host") do |conf|
   conf.toolchain :clang
 
@@ -31,13 +19,4 @@ MRuby::Build.new("host") do |conf|
   conf.picoruby
 
   conf.gem core: "mruby-compiler2"
-
-  # picoruby-ble (CoreBluetooth Darwin port), kept in parity with the ios-sim
-  # gem set. On the host (macOS, PICORB_PLATFORM_DARWIN) the gem's mrbgem.rake
-  # build.darwin? branch builds the PicoBLEDarwin Swift dylib and links it, so a
-  # host binary linking THIS libmruby.a (the bridge smoke test) pulls in the
-  # CoreBluetooth backend. add_dependency lines resolve into vendor/picoruby.
-  ble_gemdir = ENV["PICORUBY_BLE_GEMDIR"] ||
-    File.expand_path("../../picoruby-ble-darwin-port/mrbgems/picoruby-ble", __dir__)
-  conf.gem ble_gemdir
 end
