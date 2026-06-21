@@ -67,11 +67,14 @@ rake ios:device:all           # connected device: build, sign, install, launch
 ### `virtual-peripheral` — a BLE peripheral written in Ruby
 
 A PicoRuby-first virtual BLE peripheral, useful as a test stub for debugging a
-BLE *central*. The **GATT profile and every per-event behavior** (read / write /
-subscribe / notify) live in `examples/virtual-peripheral/app.rb`, running in a
-persistent VM; Swift is only the `CBPeripheralManager` radio, the bridge, and a
-read-only scrolling log of every event. It advertises a Heart Rate profile as
-`PBLE-TEST` and answers reads, writes, and subscriptions out of `app.rb`.
+BLE *central*. `app.rb` is a `BLE` subclass (`role :peripheral`); the **GATT
+profile and every per-event behavior** (advertise / read / write / subscribe /
+notify) live in it, running in a persistent VM. CoreBluetooth is driven through
+picoruby-ble's Darwin port — there is no Swift CoreBluetooth code; Swift only
+hosts the VM (a tick timer) and a read-only log. It advertises a Heart Rate
+profile as `PBLE-TEST` and answers reads, writes, and subscriptions out of
+`app.rb`. Needs the picoruby-ble Darwin port from the `bash0C7/picoruby` fork —
+see the [example README](examples/virtual-peripheral/README.md#dependencies).
 
 ```
 rake ios:vperiph:all          # Simulator (advertising needs a real radio)
