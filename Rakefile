@@ -6,7 +6,8 @@ PICORUBY_REPO = ENV["PICORUBY_REPO"] || "https://github.com/picoruby/picoruby.gi
 PICORUBY_REF  = ENV["PICORUBY_REF"]  || "master"
 PICORUBY_SRC  = File.join(ROOT, "vendor", "picoruby")
 BUILD_DIR     = File.join(ROOT, "build")
-APP_DIR       = File.join(ROOT, "app")
+EXAMPLE       = ENV["EXAMPLE"] || "repl"
+APP_DIR       = File.join(ROOT, "examples", EXAMPLE)
 VENDOR_DIR    = File.join(APP_DIR, "Vendor")
 BUNDLE_ID     = "com.bash0c7.picoruby.PicoRubyRunner"
 
