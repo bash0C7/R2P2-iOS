@@ -13,6 +13,18 @@ clang    = `xcrun --sdk iphonesimulator --find clang`.strip
 ar       = `xcrun --sdk iphonesimulator --find ar`.strip
 ios_min  = ENV["IOS_MIN"] || "17.0"
 
+# vendor/picoruby (upstream master) defines build.posix?/wasm? but NOT darwin?.
+# The bash0C7 fork adds darwin? (== PICORB_PLATFORM_DARWIN defined) and the
+# picoruby-ble Darwin port's mrbgem.rake gates on it. Provide the predicate here
+# so the upstream-master base can host the fork's BLE gem unchanged.
+module MRuby
+  class Build
+    def darwin?
+      cc.defines.include?("PICORB_PLATFORM_DARWIN")
+    end unless method_defined?(:darwin?)
+  end
+end
+
 MRuby::CrossBuild.new("ios-sim") do |conf|
   conf.toolchain :clang
 
@@ -45,4 +57,19 @@ MRuby::CrossBuild.new("ios-sim") do |conf|
   # mruby-bin-mrbc2 produces a host-executable picorbc; it must not appear in
   # a cross-build because the ios-sim linker cannot produce a host-runnable
   # binary. The host mrbc tool is built by picoruby's build_mrbc_exec hook.
+
+  # picoruby-ble (CoreBluetooth Darwin port). The gem lives in the bash0C7
+  # picoruby fork worktree, not in vendor/picoruby (upstream master, which has
+  # only the rp2040 BLE port). Point at it by path; its add_dependency lines
+  # (picoruby-mbedtls / picoruby-rng / picoruby-base64 / picoruby-cyw43) resolve
+  # back into vendor/picoruby/mrbgems via core:. The gem's mrbgem.rake fires its
+  # build.darwin? branch here (PICORB_PLATFORM_DARWIN is defined): it compiles
+  # ports/darwin/*.c into libmruby.a and generates PicoBLEDarwin-Swift.h. The
+  # Swift backend dylib it also builds is a macOS artifact and is NOT linked into
+  # this cross-built .a (archiving ignores linker libs); the iOS app target links
+  # the iOS Swift backend itself. The pble_* symbols stay undefined in the .a and
+  # resolve at app-link time.
+  ble_gemdir = ENV["PICORUBY_BLE_GEMDIR"] ||
+    File.expand_path("../../picoruby-ble-darwin-port/mrbgems/picoruby-ble", __dir__)
+  conf.gem ble_gemdir
 end
