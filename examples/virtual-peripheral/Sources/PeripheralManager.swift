@@ -38,6 +38,10 @@ final class PeripheralManager: NSObject, ObservableObject, CBPeripheralManagerDe
 
     private func append(_ line: String) {
         guard !line.isEmpty else { return }
+        // Mirror to NSLog so on-device `devicectl ... launch --console` (and the
+        // Simulator unified log) surface every event — this stub exists to be
+        // watched while debugging a BLE central.
+        NSLog("[VirtualPeripheral] %@", line)
         DispatchQueue.main.async {
             self.log += (self.log.isEmpty ? "" : "\n") + line
         }

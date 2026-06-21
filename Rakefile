@@ -225,6 +225,84 @@ namespace :ios do
     task all: [:lib, :gen, :build, :run]
   end
 
+  namespace :vperiph do
+    VPERIPH_DIR     = File.join(ROOT, "examples", "virtual-peripheral")
+    VPERIPH_PROJ    = File.join(VPERIPH_DIR, "VirtualPeripheral.xcodeproj")
+    VPERIPH_BUNDLE  = "com.bash0c7.picoruby.VirtualPeripheral"
+    VPERIPH_VENDOR  = File.join(VPERIPH_DIR, "Vendor")
+    VPERIPH_DERIVED = File.join(ROOT, "build", "ios-vperiph-app")
+    VPERIPH_DEVICE_DERIVED = File.join(ROOT, "build", "ios-vperiph-app-device")
+
+    desc "Cross-build libmruby.a (Simulator, base reduced VM) and stage under examples/virtual-peripheral/Vendor"
+    task lib: :setup do
+      stage_libmruby("r2p2-picoruby-ios-sim.rb", "ios-sim", VPERIPH_VENDOR)
+    end
+
+    namespace :device do
+      desc "Cross-build libmruby.a (iphoneos arm64, base reduced VM) and stage under examples/virtual-peripheral/Vendor"
+      task lib: :setup do
+        stage_libmruby("r2p2-picoruby-ios-device.rb", "ios-device", VPERIPH_VENDOR)
+      end
+
+      desc "Build the Virtual Peripheral app, signed, for the connected iOS device"
+      task :build do
+        dest = `xcodebuild -project #{VPERIPH_PROJ.shellescape} -scheme VirtualPeripheral -showdestinations 2>/dev/null`.lines
+               .grep(/platform:iOS,/).reject { |l| l =~ /Simulator|placeholder/ }
+               .first&.match(/id:(\S+)/)&.captures&.first
+        raise "no connected iOS device destination (xcodebuild -showdestinations)" unless dest
+        sh "xcodebuild -project #{VPERIPH_PROJ.shellescape} -scheme VirtualPeripheral " \
+           "-destination 'id=#{dest}' " \
+           "-derivedDataPath #{VPERIPH_DEVICE_DERIVED.shellescape} " \
+           "ARCHS=arm64 -allowProvisioningUpdates build"
+      end
+
+      desc "Install and launch the Virtual Peripheral app on the connected iOS device"
+      task :run do
+        app = Dir.glob(File.join(VPERIPH_DEVICE_DERIVED, "Build", "Products",
+                                 "*-iphoneos", "VirtualPeripheral.app")).first
+        raise "app not built; run `rake ios:vperiph:device:build`" unless app
+        dev = `xcrun devicectl list devices`.lines
+              .grep(/iPhone|iPad/).first&.match(/([0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12})/)&.captures&.first
+        raise "no connected iOS device (xcrun devicectl list devices)" unless dev
+        sh "xcrun devicectl device install app --device #{dev} #{app.shellescape}"
+        sh "xcrun devicectl device process launch --console --device #{dev} #{VPERIPH_BUNDLE}"
+      end
+
+      desc "Full Virtual Peripheral device pipeline: lib -> gen -> build -> run (needs a connected, signed device)"
+      task all: [:lib, "ios:vperiph:gen", :build, :run]
+    end
+
+    desc "Generate the Virtual Peripheral Xcode project from project.yml"
+    task :gen do
+      sh "cd #{VPERIPH_DIR.shellescape} && xcodegen generate"
+    end
+
+    desc "Build the Virtual Peripheral app for the iOS Simulator"
+    task :build do
+      sh "xcodebuild -project #{VPERIPH_PROJ.shellescape} " \
+         "-scheme VirtualPeripheral -destination 'generic/platform=iOS Simulator' " \
+         "-derivedDataPath #{VPERIPH_DERIVED.shellescape} " \
+         "ARCHS=arm64 ONLY_ACTIVE_ARCH=NO EXCLUDED_ARCHS=x86_64 build"
+    end
+
+    desc "Boot a simulator, install, and launch the Virtual Peripheral app"
+    task :run do
+      app = Dir.glob(File.join(VPERIPH_DERIVED, "Build", "Products",
+                               "*-iphonesimulator", "VirtualPeripheral.app")).first
+      raise "app not built; run `rake ios:vperiph:build`" unless app
+      udid = `xcrun simctl list devices available`.lines
+             .grep(/iPhone/).first&.match(/\(([0-9A-F-]{36})\)/)&.captures&.first
+      raise "no available iPhone simulator" unless udid
+      sh "xcrun simctl boot #{udid} 2>/dev/null; true"
+      sh "open -a Simulator"
+      sh "xcrun simctl install #{udid} #{app.shellescape}"
+      sh "xcrun simctl launch #{udid} #{VPERIPH_BUNDLE}"
+    end
+
+    desc "Full Virtual Peripheral Simulator pipeline: lib -> gen -> build -> run"
+    task all: [:lib, :gen, :build, :run]
+  end
+
   desc "Generate the Xcode project from project.yml"
   task :gen do
     sh "cd #{APP_DIR.shellescape} && xcodegen generate"
