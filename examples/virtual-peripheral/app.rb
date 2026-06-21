@@ -12,12 +12,35 @@
 # reduced PicoRuby VM has no Regexp / Array#pack / defined?, so hex is built and
 # parsed by hand below.
 
+# The reduced PicoRuby VM is minimal: it has no String#ord, no Integer#chr, no
+# String#<<, no Array#pack, no sprintf/String#%. The only tools for byte<->char
+# are String#index and String#[i,1]. So byte<->char goes through a literal table
+# of the printable ASCII range (0x20..0x7e), with newline handled explicitly.
 module Hex
   DIGITS = "0123456789abcdef"
+  # Characters for byte values 0x20..0x7e, in order. index(c) -> c's offset from
+  # 0x20; PRINTABLE[b - 32, 1] -> the char for byte b. ('#' and '"' and '\' are
+  # escaped so the Ruby literal contains exactly these bytes.)
+  PRINTABLE = " !\"\#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+  NL = "\n"
 
   # Integer (0..255) -> 2 lowercase hex chars.
   def self.byte_to_hex(b)
     DIGITS[b >> 4, 1] + DIGITS[b & 15, 1]
+  end
+
+  # 1 char -> its byte value (0x20..0x7e or newline; 0x3f '?' for anything else).
+  def self.char_to_byte(c)
+    return 10 if c == NL
+    idx = PRINTABLE.index(c)
+    idx ? idx + 32 : 63
+  end
+
+  # byte value -> 1 char (newline, printable, or '?' placeholder).
+  def self.byte_to_char(b)
+    return NL if b == 10
+    return "?" if b < 32 || b > 126
+    PRINTABLE[b - 32, 1]
   end
 
   # ASCII String -> lowercase hex (2 chars per byte).
@@ -25,7 +48,7 @@ module Hex
     out = ""
     i = 0
     while i < str.length
-      out += byte_to_hex(str[i, 1].ord)
+      out += byte_to_hex(char_to_byte(str[i, 1]))
       i += 1
     end
     out
@@ -42,7 +65,7 @@ module Hex
     i = 0
     n = hex.length
     while i + 2 <= n
-      out += (nibble(hex[i, 1]) * 16 + nibble(hex[i + 1, 1])).chr
+      out += byte_to_char(nibble(hex[i, 1]) * 16 + nibble(hex[i + 1, 1]))
       i += 2
     end
     out
