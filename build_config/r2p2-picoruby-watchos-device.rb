@@ -37,6 +37,8 @@ MRuby::CrossBuild.new("watchos-device") do |conf|
   conf.cc.defines << "MRB_INT64"
   conf.cc.defines << "MRB_NO_BOXING"
   conf.cc.defines << "MRB_UTF8_STRING"
+  conf.cc.defines << "MRB_CONSTRAINED_BASELINE_PROFILE=1"
+  conf.cc.defines << "MRB_HEAP_PAGE_SIZE=128"
 
   conf.picoruby
   conf.gem core: "mruby-compiler2"
