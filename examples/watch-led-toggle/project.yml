@@ -49,6 +49,7 @@ targets:
           - "-lmruby"
         GENERATE_INFOPLIST_FILE: "YES"
         INFOPLIST_KEY_WKApplication: "YES"
+        INFOPLIST_KEY_WKWatchOnly: "YES"
         TARGETED_DEVICE_FAMILY: "4"
         PRODUCT_BUNDLE_IDENTIFIER: com.bash0c7.picoruby.WatchLEDToggle
         CODE_SIGN_STYLE: Automatic
