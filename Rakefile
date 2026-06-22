@@ -227,6 +227,56 @@ namespace :ios do
     end
   end
 
+  namespace :watch do
+    WATCH_DIR     = File.join(ROOT, "examples", "watch-led-toggle")
+    WATCH_PROJ    = File.join(WATCH_DIR, "WatchLEDToggle.xcodeproj")
+    WATCH_BUNDLE  = "com.bash0c7.picoruby.WatchLEDToggle"
+    WATCH_VENDOR  = File.join(WATCH_DIR, "Vendor")
+    WATCH_DERIVED = File.join(ROOT, "build", "watchos-app")
+
+    desc "Cross-build libmruby.a for watchOS Simulator and stage under examples/watch-led-toggle/Vendor"
+    task lib: :setup do
+      stage_libmruby("r2p2-picoruby-watchos-sim.rb", "watchos-sim", WATCH_VENDOR)
+    end
+
+    namespace :device do
+      desc "Cross-build libmruby.a for watchOS device and stage under examples/watch-led-toggle/Vendor"
+      task lib: :setup do
+        stage_libmruby("r2p2-picoruby-watchos-device.rb", "watchos-device", WATCH_VENDOR)
+      end
+    end
+
+    desc "Generate the Watch LED Toggle Xcode project from project.yml"
+    task :gen do
+      sh "cd #{WATCH_DIR.shellescape} && xcodegen generate"
+    end
+
+    desc "Build the Watch LED Toggle app for the watchOS Simulator"
+    task :build do
+      sh "xcodebuild -project #{WATCH_PROJ.shellescape} " \
+         "-scheme WatchLEDToggle -destination 'generic/platform=watchOS Simulator' " \
+         "-derivedDataPath #{WATCH_DERIVED.shellescape} " \
+         "ARCHS=arm64 ONLY_ACTIVE_ARCH=NO build"
+    end
+
+    desc "Boot a watchOS simulator, install, and launch the Watch LED Toggle app"
+    task :run do
+      app = Dir.glob(File.join(WATCH_DERIVED, "Build", "Products",
+                               "*-watchsimulator", "WatchLEDToggle.app")).first
+      raise "app not built; run `rake ios:watch:build`" unless app
+      udid = `xcrun simctl list devices available`.lines
+             .grep(/Apple Watch/).first&.match(/\(([0-9A-F-]{36})\)/)&.captures&.first
+      raise "no available Apple Watch simulator" unless udid
+      sh "xcrun simctl boot #{udid} 2>/dev/null; true"
+      sh "open -a Simulator"
+      sh "xcrun simctl install #{udid} #{app.shellescape}"
+      sh "xcrun simctl launch #{udid} #{WATCH_BUNDLE}"
+    end
+
+    desc "Full Watch pipeline: lib -> gen -> build -> run"
+    task all: [:lib, :gen, :build, :run]
+  end
+
   desc "Generate the Xcode project from project.yml"
   task :gen do
     sh "cd #{APP_DIR.shellescape} && xcodegen generate"
