@@ -26,6 +26,35 @@ scope — on and off only.
 There is **no poll timer** (unlike virtual-peripheral): the torch is a
 fire-and-forget on/off, so each button press makes one `vm_call` and that is all.
 
+## The behaviour is Ruby — and you can prove it
+
+`app.rb` is **not** baked into the binary as bytecode. It ships as a plain-text
+resource and is compiled **at runtime, inside the app**, by PicoRuby's prism
+compiler the moment the VM boots (`VMExecutor.start` → `vm_open(bootSource)`).
+Everything the app *does* — when to light the torch, how to flash it, what to log
+— lives in that Ruby file. The C gem only exposes the `Torch` primitive
+(`on`/`off`/`available?`); the Swift package only poke `AVCaptureDevice`. Neither
+contains any "blink" or "count" logic.
+
+To make this concrete, **ON runs a Ruby-defined blink**: it flashes the torch
+`BLINK_COUNT` times (a `while` loop in `app.rb` calling `@torch.on` / `@torch.off`
+with `sleep_ms` between) and then leaves it lit, while counting presses in Ruby.
+This is the literal "L チカ": the *loop* is Ruby, the *light* is the hardware.
+
+Change the flashing and see for yourself — **no C or Swift rebuild needed**:
+
+```sh
+# edit examples/iphone-torch/app.rb, e.g. set BLINK_COUNT = 7
+rake ios:torch:device:build   # only re-copies the app.rb resource into the .app
+#                               (libmruby.a and PicoTorchDarwin are untouched)
+# reinstall + launch (see rake ios:torch:device:run)
+```
+
+The torch now flashes 7 times. You changed only Ruby; the compiled C gem and the
+Swift backend are byte-for-byte the same. `sleep_ms` is a Kernel function from
+`mruby-task`; on iOS it blocks in real wall-clock time via the bridge HAL
+(`bridge/task_hal_ios.c`), so the pauses between flashes are genuine.
+
 ## The gem: `picoruby-iphone-torch/`
 
 A local mrbgem (not in `vendor/picoruby`). It follows the picoruby ports model:
@@ -62,9 +91,9 @@ Prerequisites: full `Xcode.app`, iOS SDK, `xcodegen` (`rake check`).
 rake ios:torch:all     # cross-build libmruby.a -> xcodegen -> build -> launch
 ```
 
-The **Simulator has no torch**. The app launches and the VM boots, but ON/OFF
-log `torch unavailable (no actuation)` instead of lighting anything. This target
-is for verifying the build links and the VM runs.
+The **Simulator has no torch**. The app launches and the VM boots, but ON logs
+`torch unavailable (no actuation)` instead of flashing anything. This target is
+for verifying the build links and the VM runs.
 
 ### Device (actual torch)
 
@@ -72,8 +101,8 @@ is for verifying the build links and the VM runs.
 rake ios:torch:device:all   # needs a connected, signed iOS device
 ```
 
-On a real iPhone, ON lights the torch and OFF turns it off (the log shows
-`torch ON` / `torch OFF`).
+On a real iPhone, ON flashes the torch `BLINK_COUNT` times and leaves it lit
+(the log shows `ON #N: blinked Nx in Ruby, now lit`); OFF turns it off.
 
 ## Individual rake tasks
 
