@@ -13,6 +13,7 @@ final class VMExecutor {
     func start(bootSource: String, onColor: @escaping (String) -> Void) {
         self.onColorChange = onColor
         queue.async {
+            guard self.vm == nil else { return }
             guard let handle = bootSource.withCString({ vm_open($0) }) else {
                 NSLog("[WatchLEDToggle] vm_open returned NULL")
                 return
@@ -39,6 +40,8 @@ final class VMExecutor {
     }
 
     private func startTick() {
+        timer?.cancel()
+        timer = nil
         let t = DispatchSource.makeTimerSource(queue: queue)
         t.schedule(deadline: .now() + 0.1, repeating: 0.1)
         t.setEventHandler { [weak self] in
