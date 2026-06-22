@@ -2,7 +2,7 @@ name: WatchLEDToggle
 options:
   bundleIdPrefix: com.bash0c7.picoruby
   deploymentTarget:
-    watchOS: "11.0"
+    watchOS: "26.0"
 targets:
   WatchLEDToggle:
     type: application
@@ -33,6 +33,7 @@ targets:
           - "MRB_USE_VM_SWITCH_DISPATCH=1"
           - "MRB_CONSTRAINED_BASELINE_PROFILE=1"
           - "MRB_HEAP_PAGE_SIZE=128"
+          - "HEAP_SIZE=2097152"
         HEADER_SEARCH_PATHS:
           - "$(SRCROOT)/../../vendor/picoruby/include"
           - "$(SRCROOT)/../../vendor/picoruby/mrbgems/mruby-compiler2/include"

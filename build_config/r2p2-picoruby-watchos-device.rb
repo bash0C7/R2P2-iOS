@@ -1,4 +1,4 @@
-# watchOS device (arm64) cross-build for picoruby → libmruby.a for the
+# watchOS device (arm64_32) cross-build for picoruby → libmruby.a for the
 # watchos SDK (physical Apple Watch). Mirrors the watchos-sim config with the
 # physical watchos SDK and device version-min flag.
 #
@@ -25,7 +25,7 @@ MRuby::CrossBuild.new("watchos-device") do |conf|
   conf.archiver.command = ar
   conf.cc.host_command  = "clang"   # builds mrbc / compiler for the host
 
-  conf.cc.flags << "-arch" << "arm64"
+  conf.cc.flags << "-arch" << "arm64_32"
   conf.cc.flags << "-isysroot" << sdk_path
   conf.cc.flags << "-mwatchos-version-min=#{watchos_min}"
 
