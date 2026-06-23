@@ -49,8 +49,9 @@ EXAMPLE         default: repl   (which examples/<name> the base ios:* tasks buil
 ## Examples
 
 Each example has its own README explaining where and how PicoRuby is used:
-[`examples/repl`](examples/repl/README.md) and
-[`examples/virtual-peripheral`](examples/virtual-peripheral/README.md).
+[`examples/repl`](examples/repl/README.md),
+[`examples/virtual-peripheral`](examples/virtual-peripheral/README.md), and
+[`examples/watch-led-toggle`](examples/watch-led-toggle/README.md).
 
 ### `repl` — evaluate Ruby on the device
 
@@ -87,6 +88,23 @@ rake ios:vperiph:write        # macOS BLE central helper that drives the periphe
 central that scans for `PBLE-TEST`, connects, reads, subscribes, and writes.
 `WRITE_HEX`, `TARGET_NAME`, and `APP_SERVICES` pass through the environment
 (e.g. `WRITE_HEX=02 rake ios:vperiph:write`).
+
+### `watch-led-toggle` — an LED blink, in Ruby, on the Apple Watch
+
+A watchOS standalone app: the embedded "hello world" LED, stood in by a 🔴 / 🔵
+you toggle by tapping. The state machine lives in `app.rb` (`LEDApp#tick` /
+`#toggle`) and runs in a persistent VM on the watch; Swift hosts the VM and
+renders whatever colour Ruby returns. The notable work is the CPU ABI: a physical
+Apple Watch is **`arm64_32` (ILP32 — 64-bit registers, 32-bit pointers)**, so the
+VM is built `MRB_NO_BOXING` + `MRB_INT64` (word/NaN boxing are invalid on ILP32),
+and an extra step recompiles the mruby objects to `arm64_32`. See the
+[example README](examples/watch-led-toggle/README.md) for the full notes.
+
+```
+rake ios:watch:all            # watchOS Simulator: lib -> gen -> build -> run
+# device (arm64_32) is an explicit pipeline — see the example README:
+rake ios:watch:device:lib && ruby build_config/recompile_arm64_32.rb
+```
 
 ### On-device builds
 
@@ -149,6 +167,9 @@ R2P2-iOS/
   build_config/
     r2p2-picoruby-ios-sim.rb        base reduced VM, iphonesimulator (CrossBuild)
     r2p2-picoruby-ios-device.rb     base reduced VM, iphoneos (CrossBuild)
+    r2p2-picoruby-watchos-sim.rb    base reduced VM, watchsimulator (CrossBuild)
+    r2p2-picoruby-watchos-device.rb base reduced VM, watchos / arm64_32 (CrossBuild)
+    recompile_arm64_32.rb           recompiles the device objects to arm64_32, re-archives
     r2p2-picoruby-host.rb           same gem set, host build for rake smoke
   bridge/
     picoruby_bridge.{c,h}           repl_eval + persistent vm_open/vm_call/vm_close
@@ -158,6 +179,7 @@ R2P2-iOS/
     repl/                           evaluate Ruby on the device
     virtual-peripheral/             a BLE peripheral whose behavior lives in app.rb
       tools/ble_write.swift         macOS BLE central helper
+    watch-led-toggle/               a 🔴/🔵 LED blink in Ruby, watchOS (arm64_32)
   vendor/picoruby/                  fetched by rake setup (gitignored)
   build/                            build output, MRUBY_BUILD_DIR (gitignored)
 ```
