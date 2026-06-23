@@ -12,12 +12,16 @@ SDK       = `xcrun --sdk watchos --show-sdk-path`.strip
 CLANG     = `xcrun --sdk watchos --find clang`.strip
 AR        = `xcrun --sdk watchos --find ar`.strip
 
-DEFINES = %w[
-  PICORB_ALLOC_ESTALLOC PICORB_ALLOC_ALIGN=8
-  MRB_INT64 MRB_NO_BOXING MRB_UTF8_STRING
-  PICORB_PLATFORM_DARWIN MRB_TICK_UNIT=4 MRB_TIMESLICE_TICK_COUNT=3
-  MRB_CONSTRAINED_BASELINE_PROFILE=1 MRB_HEAP_PAGE_SIZE=128
-].map { |d| "-D#{d}" }.join(" ")
+# Single source of truth: read the cc.defines straight from the device
+# build_config so the arm64_32 recompile can never drift from what `rake
+# ios:watch:device:lib` compiled the other objects with. A mismatch here
+# (esp. MRB_INT64 / MRB_NO_BOXING) yields a libmruby.a whose objects disagree
+# on the mrb_value layout — a silent on-device corruption.
+CONFIG_RB = File.join(__dir__, "r2p2-picoruby-watchos-device.rb")
+defs = File.read(CONFIG_RB).scan(/conf\.cc\.defines\s*<<\s*"([^"]+)"/).flatten
+raise "no cc.defines found in #{CONFIG_RB}" if defs.empty?
+puts "Defines from build_config (#{defs.size}): #{defs.join(' ')}"
+DEFINES = defs.map { |d| "-D#{d}" }.join(" ")
 
 INCLUDES = [
   "build/watchos-device/include",
