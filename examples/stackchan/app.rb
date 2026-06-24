@@ -123,6 +123,18 @@ end
 # the two compare directly.
 NUS_SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e"
 NUS_RX_CHAR_UUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"
+# picoruby-ble's BLE::Utils.uuid renders these to the 16-byte little-endian wire
+# form with Array#pack — a method picoruby's Array class does not implement in
+# this build (the mruby-pack gem is not linked). The discovered service /
+# characteristic :uuid128 fields are exactly those 16 raw little-endian bytes,
+# so rather than build bytes we render them back to a big-endian hex string
+# (with String#getbyte, which picoruby's String class does implement) and match
+# against these dash-stripped expectations.
+NUS_SERVICE_UUID128_HEX = "6e400001b5a3f393e0a9e50e24dcca9e"
+NUS_RX_CHAR_UUID128_HEX = "6e400002b5a3f393e0a9e50e24dcca9e"
+# Lowercase hex digits for the byte -> hex rendering (picoruby's Integer has no
+# #chr in this build either, so index this constant instead).
+HEX_DIGITS = "0123456789abcdef"
 # Substring matched against the advertised local name to pick the robot.
 STACKCHAN_NAME = "StackChan"
 
@@ -252,19 +264,35 @@ if BLE_AVAILABLE
 
     private
 
-    # Walk discovered services for the NUS, then its RX characteristic.
+    # Walk discovered services for the NUS, then its RX characteristic. Match by
+    # rendering each discovered :uuid128 (16 little-endian bytes) to big-endian
+    # hex; see NUS_SERVICE_UUID128_HEX for why we avoid BLE::Utils.uuid here.
     def bind_rx
-      want_service = BLE::Utils.uuid(NUS_SERVICE_UUID)
-      want_rx      = BLE::Utils.uuid(NUS_RX_CHAR_UUID)
       @ble.services.each do |service|
-        next unless service[:uuid128] == want_service
+        next unless uuid128_hex(service[:uuid128]) == NUS_SERVICE_UUID128_HEX
         service[:characteristics].each do |chara|
-          if chara[:uuid128] == want_rx
+          if uuid128_hex(chara[:uuid128]) == NUS_RX_CHAR_UUID128_HEX
             @rx_value_handle = chara[:value_handle]
             return
           end
         end
       end
+    end
+
+    # 16 little-endian bytes -> big-endian lowercase hex String ("" unless the
+    # input is exactly 16 bytes). Uses only String#getbyte and String#[i, len]:
+    # picoruby's Array has no #pack and its Integer no #chr in this build.
+    def uuid128_hex(bytes)
+      return "" unless bytes && bytes.bytesize == 16
+      hex = ""
+      i = 15
+      while i >= 0
+        b = bytes.getbyte(i) || 0
+        hex += HEX_DIGITS[(b >> 4), 1]
+        hex += HEX_DIGITS[b & 0x0f, 1]
+        i -= 1
+      end
+      hex
     end
 
     def flush_pending
