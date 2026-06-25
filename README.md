@@ -51,8 +51,9 @@ EXAMPLE         default: repl   (which examples/<name> the base ios:* tasks buil
 Each example has its own README explaining where and how PicoRuby is used:
 [`examples/repl`](examples/repl/README.md),
 [`examples/virtual-peripheral`](examples/virtual-peripheral/README.md),
-[`examples/iphone-torch`](examples/iphone-torch/README.md), and
-[`examples/watch-led-toggle`](examples/watch-led-toggle/README.md).
+[`examples/iphone-torch`](examples/iphone-torch/README.md),
+[`examples/watch-led-toggle`](examples/watch-led-toggle/README.md), and
+[`examples/stackchan`](examples/stackchan/README.md).
 
 ### `repl` — evaluate Ruby on the device
 
@@ -103,6 +104,28 @@ forwards button taps; there is no torch logic in Swift. See the
 rake ios:torch:all            # Simulator: lib -> gen -> build -> run
 rake ios:torch:device:all     # connected device: build, sign, install, launch
 ```
+
+### `stackchan` — a Stack-chan BLE central written in Ruby
+
+A PicoRuby-first BLE *central* that connects to a
+[Stack-chan](https://github.com/meganetaaan/stack-chan) robot running the
+`stackchan-picoruby` firmware and sends face / LED / head / torque commands over
+Nordic UART Service (NUS). The entire BLE logic — scan, connect, GATT discovery,
+NUS RX write — lives in `app.rb` using `picoruby-ble`'s central API; Swift only
+hosts the VM and forwards button taps. The example-specific build config adds the
+three stdlib gems that `picoruby-ble`'s mrblib depends on (`mruby-string-ext`,
+`mruby-pack`, `mruby-sprintf`) without touching the minimal base config.
+
+```
+rake ios:stackchan:device:lib   # cross-build BLE-enabled libmruby.a for iphoneos
+rake ios:stackchan:gen          # xcodegen generate
+rake ios:stackchan:device:build # sign and build for the connected iPhone
+rake ios:stackchan:device:run   # install + launch with console output
+rake ios:stackchan:device:all   # lib -> gen -> build -> run in one step
+```
+
+See [examples/stackchan/README.md](examples/stackchan/README.md) for wiring
+details, the codec test, and known device constraints.
 
 ### `watch-led-toggle` — an LED blink, in Ruby, on the Apple Watch
 
@@ -170,9 +193,11 @@ absent. The Ruby surface is therefore smaller than full mruby/CRuby:
   `begin`/`rescue` are available.
 - `puts` is not in the reduced VM (it comes from an IO gem); the bridge installs
   a small `puts` shim defined in terms of core `print`.
-- `defined?`, `Array#pack`, `String#ord`, `Integer#chr`, `String#<<`, `sprintf`,
-  and `String#%` are absent. Probe new bundled Ruby against the host build
-  (`rake smoke`'s `libmruby.a`) before relying on it on-device.
+- `defined?`, `String#ord`, `Integer#chr`, and `String#%` are absent in the base
+  VM. Probe new bundled Ruby against the host build (`rake smoke`'s `libmruby.a`)
+  before relying on it on-device. (Examples that need `Array#pack`, `String#<<`,
+  or `sprintf` can add `mruby-pack`, `mruby-string-ext`, `mruby-sprintf` to their
+  own example-scoped build config — see `examples/stackchan`.)
 
 ## Layout
 
@@ -196,6 +221,7 @@ R2P2-iOS/
       tools/ble_write.swift         macOS BLE central helper
     iphone-torch/                   Ruby-driven iPhone flashlight (picoruby-iphone-torch gem)
     watch-led-toggle/               a 🔴/🔵 LED blink in Ruby, watchOS (arm64_32)
+    stackchan/                      Stack-chan BLE central: face/LED/head/torque over NUS
   vendor/picoruby/                  fetched by rake setup (gitignored)
   build/                            build output, MRUBY_BUILD_DIR (gitignored)
 ```
