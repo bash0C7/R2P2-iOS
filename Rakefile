@@ -97,14 +97,15 @@ end
 namespace :ios do
   desc "Cross-build libmruby.a for the iOS Simulator and stage under app/Vendor"
   task lib: :setup do
-    # Base (BLE-free) config — keeps the REPL example self-contained.
-    stage_libmruby("r2p2-picoruby-ios-sim.rb", "ios-sim", VENDOR_DIR)
+    # Full REPL (posix?=true + darwin port-chain): the complete core/stdlib/shell
+    # gembox set. BLE-free, so the REPL example stays self-contained.
+    stage_libmruby("r2p2-picoruby-ios-repl-sim.rb", "ios-repl-sim", VENDOR_DIR)
   end
 
   namespace :device do
     desc "Cross-build libmruby.a for an iOS device (iphoneos arm64) and stage under app/Vendor"
     task lib: :setup do
-      stage_libmruby("r2p2-picoruby-ios-device.rb", "ios-device", VENDOR_DIR)
+      stage_libmruby("r2p2-picoruby-ios-repl-device.rb", "ios-repl-device", VENDOR_DIR)
     end
 
     desc "Build the app, signed, for the connected iOS device"
