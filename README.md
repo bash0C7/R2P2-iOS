@@ -180,8 +180,8 @@ absent. The Ruby surface is therefore smaller than full mruby/CRuby:
 R2P2-iOS/
   Rakefile                          check / setup / smoke / ios:* / clean / clobber
   build_config/
-    r2p2-picoruby-ios-sim.rb        base reduced VM, iphonesimulator (CrossBuild)
-    r2p2-picoruby-ios-device.rb     base reduced VM, iphoneos (CrossBuild)
+    r2p2-picoruby-ios-repl-sim.rb    full REPL (posix?=true + darwin port-chain), iphonesimulator (CrossBuild)
+    r2p2-picoruby-ios-repl-device.rb full REPL (posix?=true + darwin port-chain), iphoneos (CrossBuild)
     r2p2-picoruby-watchos-sim.rb    base reduced VM, watchsimulator (CrossBuild)
     r2p2-picoruby-watchos-device.rb base reduced VM, watchos / arm64_32 (CrossBuild)
     recompile_arm64_32.rb           recompiles the device objects to arm64_32, re-archives
