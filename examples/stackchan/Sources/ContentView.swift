@@ -32,10 +32,15 @@ struct ContentView: View {
                 }
 
                 group("Head") {
-                    HStack {
-                        Button("Left")  { send("head", "left:40:400") }
-                        Button("Up")    { send("head", "up:30:400") }
-                        Button("Right") { send("head", "right:40:400") }
+                    VStack(spacing: 6) {
+                        HStack {
+                            Button("Left")   { send("head", "left:40:400") }
+                            Button("Center") { send("head", "center") }
+                            Button("Right")  { send("head", "right:40:400") }
+                        }
+                        HStack {
+                            Button("Up") { send("head", "up:30:400") }
+                        }
                     }
                     .buttonStyle(.bordered)
                 }
