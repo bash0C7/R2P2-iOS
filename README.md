@@ -174,6 +174,45 @@ absent. The Ruby surface is therefore smaller than full mruby/CRuby:
   and `String#%` are absent. Probe new bundled Ruby against the host build
   (`rake smoke`'s `libmruby.a`) before relying on it on-device.
 
+## Fork fix: picoruby-net POSIX recv-buffer allocator
+
+The default `vendor/picoruby` source (the `bash0C7/picoruby` fork, branch
+`picoruby-ble-darwin-port`) carries a fix to **picoruby-net's POSIX port** that
+R2P2-iOS depends on. Commit `1a055b62`,
+`fix(net/posix): allocate recv buffer with mruby allocator, not system malloc`.
+
+**What it changes.** `mrbgems/picoruby-net/ports/posix/{tcp,tls,udp}_client.c`
+allocated the receive buffer with the system allocator (`malloc` / `realloc` /
+`free`) and stored it into `res->recv_data`. But the mruby glue in
+`mrbgems/picoruby-net/src/mruby/net.c` *frees* `res->recv_data` with `mrb_free`.
+The fix makes the POSIX ports allocate that buffer with the VM allocator
+(`picorb_alloc` / `picorb_realloc` / `picorb_free`, which resolve to
+`mrb_malloc` / `mrb_realloc` / `mrb_free`), so the buffer matches the allocator
+that frees it. This also aligns the POSIX port with the LwIP path
+(`src/tcp.c`), which already keeps `recv_data` on the VM allocator.
+
+**Why it matters here, and to every POSIX consumer.** This is a source-level fix
+to the shared POSIX port, so it affects **all** POSIX builds of picoruby-net
+(R2P2-iOS, R2P2-macOS, and any POSIX host) — it is not iOS-specific. Its
+*observable* effect depends on which mruby allocator the embedder installs:
+
+- **Default allocator** (`mrb_open`): `mrb_free == free`, so allocating with
+  system `malloc` and freeing with `mrb_free` already matched. The fix is a
+  **no-op** there — nothing regresses.
+- **Custom allocator** (`mrb_open_with_custom_alloc`): `mrb_free` routes into the
+  embedder's pool, *not* system `free`. R2P2-iOS opens the VM over an 8 MB
+  `estalloc` pool (`bridge/picoruby_bridge.c`), so the unfixed code freed a
+  **system-heap** pointer through the **estalloc** free-list — corrupting it and
+  crashing in `est_free` / `remove_free_block` right after a network response
+  arrived (it looked like a hang because the bridge only flushes captured stdout
+  when the call returns, and the crash meant it never returned). The fix is what
+  makes HTTP/HTTPS work at all on iOS.
+
+Because the change is correct everywhere and inert under the default allocator,
+it is upstream-worthy; it lives in the fork for now and is a candidate to send to
+`picoruby/picoruby`. R2P2-iOS picks it up automatically through the default
+`PICORUBY_REF` once it is present on the fork remote.
+
 ## Layout
 
 ```
