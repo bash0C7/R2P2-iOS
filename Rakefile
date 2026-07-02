@@ -390,6 +390,7 @@ namespace :ios do
     WATCH_BUNDLE  = "com.bash0c7.picoruby.WatchLEDToggle"
     WATCH_VENDOR  = File.join(WATCH_DIR, "Vendor")
     WATCH_DERIVED = File.join(ROOT, "build", "watchos-app")
+    WATCH_DEVICE_DERIVED = File.join(ROOT, "build", "watchos-app-device")
 
     desc "Cross-build libmruby.a for watchOS Simulator and stage under examples/watch-led-toggle/Vendor"
     task lib: :setup do
@@ -397,10 +398,44 @@ namespace :ios do
     end
 
     namespace :device do
-      desc "Cross-build libmruby.a for watchOS device and stage under examples/watch-led-toggle/Vendor"
+      desc "Cross-build libmruby.a for watchOS device (arm64_32) and stage under examples/watch-led-toggle/Vendor"
       task lib: :setup do
         stage_libmruby("r2p2-picoruby-watchos-device.rb", "watchos-device", WATCH_VENDOR)
+        # stage_libmruby copies the fat/arm64 archive mruby just built; the
+        # physical watch needs arm64_32. Recompile in place and re-stage so
+        # Vendor/lib never ends up with an arch the device can't run.
+        sh "ruby #{File.join(ROOT, "build_config", "recompile_arm64_32.rb").shellescape}"
+        lib = File.join(BUILD_DIR, "watchos-device", "lib", "libmruby.a")
+        cp lib, File.join(WATCH_VENDOR, "lib", "libmruby.a")
+        puts "Re-staged arm64_32 libmruby.a under #{WATCH_VENDOR}"
       end
+
+      desc "Build the Watch LED Toggle app, signed, for the connected Apple Watch"
+      task :build do
+        dest = `xcodebuild -project #{WATCH_PROJ.shellescape} -scheme WatchLEDToggle -showdestinations 2>/dev/null`.lines
+               .grep(/platform:watchOS,/).reject { |l| l =~ /Simulator|placeholder/ }
+               .first&.match(/id:(\S+)/)&.captures&.first
+        raise "no connected watchOS device destination (xcodebuild -showdestinations)" unless dest
+        sh "xcodebuild -project #{WATCH_PROJ.shellescape} -scheme WatchLEDToggle " \
+           "-destination 'id=#{dest}' " \
+           "-derivedDataPath #{WATCH_DEVICE_DERIVED.shellescape} " \
+           "ARCHS=arm64_32 -allowProvisioningUpdates build"
+      end
+
+      desc "Install and launch the Watch LED Toggle app on the connected Apple Watch"
+      task :run do
+        app = Dir.glob(File.join(WATCH_DEVICE_DERIVED, "Build", "Products",
+                                 "*-watchos", "WatchLEDToggle.app")).first
+        raise "app not built; run `rake ios:watch:device:build`" unless app
+        dev = `xcrun devicectl list devices`.lines
+              .grep(/Watch/).first&.match(/([0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12})/)&.captures&.first
+        raise "no connected Apple Watch (xcrun devicectl list devices)" unless dev
+        sh "xcrun devicectl device install app --device #{dev} #{app.shellescape}"
+        sh "xcrun devicectl device process launch --console --device #{dev} #{WATCH_BUNDLE}"
+      end
+
+      desc "Full Watch device pipeline: lib -> gen -> build -> run (needs a connected, signed Apple Watch)"
+      task all: [:lib, "ios:watch:gen", :build, :run]
     end
 
     desc "Generate the Watch LED Toggle Xcode project from project.yml"
