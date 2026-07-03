@@ -3,8 +3,8 @@
 # build output
 /build/
 # staged lib + headers + generated project (per example)
-/examples/*/Vendor/
-/examples/*/*.xcodeproj
+/examples/*/*/Vendor/
+/examples/*/*/*.xcodeproj
 # process docs (kept local; may hold in-progress / sensitive notes)
 /docs/superpowers/
 /HANDOFF.md
