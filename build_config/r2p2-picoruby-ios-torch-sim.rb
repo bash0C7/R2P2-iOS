@@ -42,7 +42,7 @@ MRuby::CrossBuild.new("ios-torch-sim") do |conf|
 
   conf.picoruby
 
-  conf.gem core: "mruby-compiler2"
+  conf.gem core: "mruby-compiler"
 
   # --- iPhone Torch: local picoruby-iphone-torch gem + its Darwin port -----------
   # conf.ports :darwin makes effective_ports include "darwin", so the gem compiles

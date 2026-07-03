@@ -613,14 +613,14 @@ task smoke: "host:lib" do
     MRB_USE_TASK_SCHEDULER=1 MRB_USE_VM_SWITCH_DISPATCH=1
   ].map { |d| "-D#{d}" }.join(" ")
 
-  # picoruby.h uses angle-bracket includes for mrc_common.h (mruby-compiler2),
-  # mruby.h (picoruby-mruby/lib/mruby), and prism.h (mruby-compiler2/lib/prism).
+  # picoruby.h uses angle-bracket includes for mrc_common.h (mruby-compiler),
+  # mruby.h (picoruby-mruby/lib/mruby), and prism.h (mruby-compiler/lib/prism).
   # build/host/include supplies the generated presym/id.h.
   # task.h is in mruby-task/include.
   includes = [
     File.join(PICORUBY_SRC, "include"),
-    File.join(PICORUBY_SRC, "mrbgems", "mruby-compiler2", "include"),
-    File.join(PICORUBY_SRC, "mrbgems", "mruby-compiler2", "lib", "prism", "include"),
+    File.join(PICORUBY_SRC, "mrbgems", "mruby-compiler", "include"),
+    File.join(PICORUBY_SRC, "mrbgems", "mruby-compiler", "lib", "prism", "include"),
     File.join(PICORUBY_SRC, "mrbgems", "picoruby-mruby", "lib", "mruby", "include"),
     File.join(PICORUBY_SRC, "mrbgems", "picoruby-mruby", "include"),
     File.join(BUILD_DIR, "host", "include"),

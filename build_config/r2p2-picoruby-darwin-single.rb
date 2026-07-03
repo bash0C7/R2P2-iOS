@@ -24,8 +24,8 @@ MRuby::Build.new do |conf|
 
   # `minimum` gembox manually expanded so picoruby-bin-picoruby (the REPL)
   # is dropped while compiler / mrbc / VM stay.
-  conf.gem core: "mruby-compiler2"
-  conf.gem core: "mruby-bin-mrbc2"
+  conf.gem core: "mruby-compiler"
+  conf.gem core: "mruby-bin-mrbc"
   conf.gem core: "picoruby-mruby"
 
   conf.gembox "mruby-posix"
@@ -33,6 +33,6 @@ MRuby::Build.new do |conf|
   conf.gembox "stdlib"
 
   bin_gem = ENV["R2P2_SINGLE_GEM_PATH"]
-  raise "R2P2_SINGLE_GEM_PATH not set (run via `rake single`, not directly)" if bin_gem.nil? || bin_gem.empty?
+  raise "R2P2_SINGLE_GEM_PATH not set (run via `rake macos:single`, not directly)" if bin_gem.nil? || bin_gem.empty?
   conf.gem bin_gem
 end
