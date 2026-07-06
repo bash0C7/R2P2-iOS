@@ -7,11 +7,11 @@ packages:
   # The Darwin (CoreMotion) backend. Its pmotion_* C symbols resolve the
   # undefined references in the staged libmruby.a at app link.
   PicoMotionDarwin:
-    path: picoruby-iphone-motion/ports/darwin/ext
+    path: picoruby-iphone-motion/ports/darwin/ext-motion
   # The Darwin (AVAudioEngine) backend. Its psynth_* C symbols resolve the
   # undefined references in the staged libmruby.a at app link.
   PicoSynthDarwin:
-    path: picoruby-iphone-synth/ports/darwin/ext
+    path: picoruby-iphone-synth/ports/darwin/ext-synth
 targets:
   TiltSynth:
     type: application
