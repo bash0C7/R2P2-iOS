@@ -1,0 +1,35 @@
+import CoreMotion
+
+// C-callable surface for ports/darwin/motion.c. Uses `@c` (SE-0495) like
+// PicoTorchExports. Direction is C -> Swift only.
+//
+// CMMotionManager's callback runs on the main queue while pmotion_pitch/
+// pmotion_roll are called from the VM tick thread, so the latest sample is
+// guarded by a lock (unlike torch, which is fire-and-forget with no
+// concurrent readers/writers).
+
+private let manager = CMMotionManager()
+private let latest = OSAllocatedUnfairLock<CMDeviceMotion?>(initialState: nil)
+
+private func ensureUpdatesStarted() {
+  guard manager.isDeviceMotionAvailable, !manager.isDeviceMotionActive else { return }
+  manager.deviceMotionUpdateInterval = 1.0 / 60.0
+  manager.startDeviceMotionUpdates(to: .main) { motion, _ in
+    latest.withLock { $0 = motion }
+  }
+}
+
+@c public func pmotion_available() -> Int32 {
+  ensureUpdatesStarted()
+  return manager.isDeviceMotionAvailable ? 1 : 0
+}
+
+@c public func pmotion_pitch() -> Double {
+  ensureUpdatesStarted()
+  return (latest.withLock { $0 }?.attitude.pitch ?? 0) * 180.0 / .pi
+}
+
+@c public func pmotion_roll() -> Double {
+  ensureUpdatesStarted()
+  return (latest.withLock { $0 }?.attitude.roll ?? 0) * 180.0 / .pi
+}
