@@ -1,4 +1,5 @@
-import CoreMotion
+@preconcurrency import CoreMotion
+import os
 
 // C-callable surface for ports/darwin/motion.c. Uses `@c` (SE-0495) like
 // PicoTorchExports. Direction is C -> Swift only.
@@ -6,9 +7,14 @@ import CoreMotion
 // CMMotionManager's callback runs on the main queue while pmotion_pitch/
 // pmotion_roll are called from the VM tick thread, so the latest sample is
 // guarded by a lock (unlike torch, which is fire-and-forget with no
-// concurrent readers/writers).
+// concurrent readers/writers). @preconcurrency on the CoreMotion import is
+// needed because CMDeviceMotion predates Swift concurrency and isn't
+// Sendable, which the lock's generic parameter otherwise requires.
 
-private let manager = CMMotionManager()
+// manager is only touched via ensureUpdatesStarted() and the plain accessor
+// calls below, both callable from the VM tick thread or CoreMotion's own
+// callback; CMMotionManager tolerates being driven this way.
+private nonisolated(unsafe) let manager = CMMotionManager()
 private let latest = OSAllocatedUnfairLock<CMDeviceMotion?>(initialState: nil)
 
 private func ensureUpdatesStarted() {
