@@ -23,10 +23,20 @@ private struct AttitudeSample: Sendable {
 private nonisolated(unsafe) let manager = CMMotionManager()
 private let latest = OSAllocatedUnfairLock<AttitudeSample?>(initialState: nil)
 
+// Dedicated serial queue for CoreMotion delivery. Delivering to `.main`
+// made `latest` go stale (and the synth note "stick") whenever SwiftUI
+// rendering backed up the main thread -- this queue is never touched by UI
+// work, so samples keep flowing regardless of render load.
+private let motionQueue: OperationQueue = {
+  let q = OperationQueue()
+  q.maxConcurrentOperationCount = 1
+  return q
+}()
+
 private func ensureUpdatesStarted() {
   guard manager.isDeviceMotionAvailable, !manager.isDeviceMotionActive else { return }
   manager.deviceMotionUpdateInterval = 1.0 / 60.0
-  manager.startDeviceMotionUpdates(to: .main) { motion, _ in
+  manager.startDeviceMotionUpdates(to: motionQueue) { motion, _ in
     guard let motion else { return }
     let sample = AttitudeSample(pitch: motion.attitude.pitch, roll: motion.attitude.roll)
     latest.withLock { $0 = sample }
