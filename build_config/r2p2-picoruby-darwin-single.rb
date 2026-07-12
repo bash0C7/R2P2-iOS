@@ -1,8 +1,8 @@
-# Darwin host build for a single-binary picoruby app (mrblib 方式).
-# Used by `rake single`. The user's app gem path is passed in via the
-# R2P2_SINGLE_GEM_PATH env var, which the rake task sets.
+# Darwin host build for a single-binary picoruby app: the app's Ruby is
+# embedded as mrblib. Used by `rake macos:single`, which passes the app gem
+# path in via the R2P2_SINGLE_GEM_PATH env var.
 #
-# Drops the REPL bin (picoruby-bin-picoruby) and the R2P2 shell bin
+# Omits the REPL bin (picoruby-bin-picoruby) and the R2P2 shell bin
 # (picoruby-bin-r2p2), and pulls in only the gemboxes most apps need
 # (mruby-posix + core + stdlib). If your app needs networking / shell /
 # fonts, copy this file and add the gemboxes you want.
@@ -22,8 +22,8 @@ MRuby::Build.new do |conf|
 
   conf.picoruby
 
-  # `minimum` gembox manually expanded so picoruby-bin-picoruby (the REPL)
-  # is dropped while compiler / mrbc / VM stay.
+  # The `minimum` gembox minus picoruby-bin-picoruby (the REPL):
+  # compiler / mrbc / VM only.
   conf.gem core: "mruby-compiler"
   conf.gem core: "mruby-bin-mrbc"
   conf.gem core: "picoruby-mruby"

@@ -1,11 +1,11 @@
 # iOS Simulator (arm64) cross-build for the tilt-synth example: the bare
-# picoruby VM/compiler (identical to r2p2-picoruby-ios-sim.rb) PLUS the local
-# picoruby-iphone-motion and picoruby-iphone-synth gems, each built with its
-# Darwin port. EXAMPLE-SCOPED -- the base sim config stays free of both so the
-# REPL keeps linking standalone.
+# picoruby VM/compiler PLUS the local picoruby-iphone-motion and
+# picoruby-iphone-synth gems, each built with its Darwin port. EXAMPLE-SCOPED
+# — the gems live only in this config so every other target's libmruby.a
+# keeps linking without them.
 #
 # Neither gem declares add_dependency or calls build.darwin?, so no
-# picoruby-ble-style mbedtls/cyw43 stripping or darwin? monkeypatch is needed
+# picoruby-ble-style mbedtls/cyw43 stripping or darwin? fallback is needed
 # (same rationale as r2p2-picoruby-ios-torch-sim.rb).
 
 sdk_path = `xcrun --sdk iphonesimulator --show-sdk-path`.strip
@@ -16,12 +16,15 @@ ios_min  = ENV["IOS_MIN"] || "17.0"
 MRuby::CrossBuild.new("ios-tiltsynth-sim") do |conf|
   conf.toolchain :clang
 
+  # The gcc/clang toolchain adds -lm by default, but libm is part of libSystem
+  # on Apple platforms and the SDK marks it unavailable as a separate library.
+  # Remove it to avoid link failure.
   conf.linker.libraries.delete("m")
 
   conf.cc.command       = clang
   conf.linker.command   = clang
   conf.archiver.command = ar
-  conf.cc.host_command  = "clang"
+  conf.cc.host_command  = "clang"   # builds mrbc / compiler for the host
 
   conf.cc.flags << "-arch" << "arm64"
   conf.cc.flags << "-isysroot" << sdk_path

@@ -1,9 +1,9 @@
 # Darwin host build for picoruby with the picoruby-ble CoreBluetooth port
-# opted in. Used by the BLE Example in README.md.
+# opted in. Used by the macOS BLE variant in README.md.
 #
 # Requires a picoruby tree that carries mrbgems/picoruby-ble/ports/darwin/
-# (e.g. https://github.com/bash0C7/picoruby.git branch picoruby-ble-darwin-port,
-# as of 2026-06-20). picoruby-picotest is included so the port's tests can run.
+# (the default fork bash0C7/picoruby, branch port-darwin, does).
+# picoruby-picotest is included so the port's tests can run.
 
 MRuby::Build.new do |conf|
   conf.toolchain :gcc

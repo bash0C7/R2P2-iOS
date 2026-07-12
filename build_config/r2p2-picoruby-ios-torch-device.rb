@@ -1,6 +1,7 @@
-# iOS device (arm64) cross-build for the iPhone Torch example. See
-# r2p2-picoruby-ios-torch-sim.rb for the example-scoped rationale; this is the
-# iphoneos-SDK twin.
+# iOS device (arm64) cross-build for the iPhone Torch example. Device
+# counterpart of r2p2-picoruby-ios-torch-sim.rb; see that file for the
+# example-scoped rationale. Differs only in the iphoneos SDK and device
+# version-min flag.
 
 sdk_path = `xcrun --sdk iphoneos --show-sdk-path`.strip
 clang    = `xcrun --sdk iphoneos --find clang`.strip
@@ -10,6 +11,9 @@ ios_min  = ENV["IOS_MIN"] || "17.0"
 MRuby::CrossBuild.new("ios-torch-device") do |conf|
   conf.toolchain :clang
 
+  # The gcc/clang toolchain adds -lm by default, but libm is part of libSystem
+  # on Apple platforms and the SDK marks it unavailable as a separate library.
+  # Remove it to avoid link failure.
   conf.linker.libraries.delete("m")
 
   conf.cc.command       = clang

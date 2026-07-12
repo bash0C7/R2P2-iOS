@@ -1,8 +1,8 @@
-# Darwin host build for picoruby. Sets PICORB_PLATFORM_DARWIN (the
-# identity macro upstream master does not yet define) and links the
-# Homebrew openssl@3 prefix that the networking gembox needs.
+# Darwin host build for picoruby, the default MRUBY_CONFIG for macos: tasks.
+# Sets PICORB_PLATFORM_DARWIN (the Darwin platform identity macro) and links
+# Homebrew openssl@3 (ssl/crypto) for the networking gembox.
 #
-# Mirrors picoruby/picoruby's per-target build_config naming convention
+# Follows picoruby's per-target build_config naming convention
 # (e.g. build_config/r2p2-picoruby-pico2.rb).
 
 MRuby::Build.new do |conf|

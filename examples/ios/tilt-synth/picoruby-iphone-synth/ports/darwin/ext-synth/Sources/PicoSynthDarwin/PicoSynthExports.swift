@@ -122,7 +122,7 @@ private func installInterruptionHandlerOnce() {
   engine.stop()
   // Note: sourceNode is left non-nil, so a later psynth_start() hits the
   // `sourceNode == nil` guard and returns early without restarting the
-  // engine. Unreachable today (app.rb never calls Synth#stop) but a future
+  // engine. Unreachable in practice (app.rb never calls Synth#stop); a
   // stop->start cycle would need `sourceNode = nil` here to actually work.
   return 1
 }

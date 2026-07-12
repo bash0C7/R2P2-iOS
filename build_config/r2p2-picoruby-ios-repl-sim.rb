@@ -1,18 +1,19 @@
 # iOS Simulator (arm64) full-REPL cross-build for picoruby → libmruby.a for the
 # iphonesimulator SDK. prism compiler + VM are baked in, so Ruby is compiled &
-# run at runtime in-app. Mirrors the cross-build shape of picoruby's
-# r2p2-picoruby-pico2.rb (target cc + host_command) and R2P2-macOS darwin defines.
+# run at runtime in-app. Follows the cross-build shape of picoruby's
+# r2p2-picoruby-pico2.rb (target cc + host_command) with the Darwin defines of
+# build_config/r2p2-picoruby-darwin.rb.
 #
 # iOS IS POSIX (shared Darwin/XNU with macOS), so PICORB_PLATFORM_POSIX is
-# defined and the complete core/stdlib/shell gemboxes (the set build_config/
-# default.rb ships on the macOS host) are pulled in. Per-feature gaps (TTY,
-# /dev/urandom sandbox, gethostuuid) are covered by darwin ports selected over
-# their posix siblings via `conf.ports :darwin, :posix`.
+# defined and the complete mruby-posix/core/stdlib/shell gemboxes from
+# picoruby's build_config/default.rb are pulled in. Per-feature gaps (TTY,
+# /dev/urandom sandbox, gethostuuid) are covered by darwin ports selected
+# over their posix siblings via `conf.ports :darwin, :posix`.
 #
 # Excluded vs default.rb: "minimum" (its posix? branch pulls host-only binaries
 # mruby-bin-mrbc / picoruby-bin-picoruby that a cross-build can't produce) and
 # "networking" / OpenSSL (socket stack is out of scope). mruby-compiler + the
-# picoruby VM are added directly, as the bare-VM config did.
+# picoruby VM are added directly.
 
 sdk_path = `xcrun --sdk iphonesimulator --show-sdk-path`.strip
 clang    = `xcrun --sdk iphonesimulator --find clang`.strip
@@ -22,9 +23,9 @@ ios_min  = ENV["IOS_MIN"] || "17.0"
 MRuby::CrossBuild.new("ios-repl-sim") do |conf|
   conf.toolchain :clang
 
-  # The gcc/clang toolchain sets -lm by default, but libm is part of
-  # libSystem on Apple platforms and iOS Simulator explicitly marks it
-  # unavailable as a separate library. Remove it to avoid link failure.
+  # The gcc/clang toolchain adds -lm by default, but libm is part of libSystem
+  # on Apple platforms and the SDK marks it unavailable as a separate library.
+  # Remove it to avoid link failure.
   conf.linker.libraries.delete("m")
 
   conf.cc.command       = clang

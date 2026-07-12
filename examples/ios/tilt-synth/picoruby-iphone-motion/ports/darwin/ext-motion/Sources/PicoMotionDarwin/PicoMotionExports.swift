@@ -4,13 +4,14 @@ import os
 // C-callable surface for ports/darwin/motion.c. Uses `@c` (SE-0495) like
 // PicoTorchExports. Direction is C -> Swift only.
 //
-// CMMotionManager's callback runs on the main queue while pmotion_pitch/
-// pmotion_roll are called from the VM tick thread, so the latest sample is
-// guarded by a lock (unlike torch, which is fire-and-forget with no
-// concurrent readers/writers). Only the two Double fields we actually need
-// are extracted into AttitudeSample and stored behind the lock, so the lock
-// never has to hold CMDeviceMotion itself (which predates Swift concurrency
-// and isn't Sendable) — no @preconcurrency needed here.
+// CMMotionManager's callback runs on a dedicated serial queue (motionQueue)
+// while pmotion_pitch/pmotion_roll are called from the VM tick thread, so
+// the latest sample is guarded by a lock (unlike torch, which is
+// fire-and-forget with no concurrent readers/writers). Only the two Double
+// fields we actually need are extracted into AttitudeSample and stored
+// behind the lock, so the lock never has to hold CMDeviceMotion itself
+// (which predates Swift concurrency and isn't Sendable) — no
+// @preconcurrency needed here.
 
 private struct AttitudeSample: Sendable {
   let pitch: Double
@@ -24,8 +25,8 @@ private nonisolated(unsafe) let manager = CMMotionManager()
 private let latest = OSAllocatedUnfairLock<AttitudeSample?>(initialState: nil)
 
 // Dedicated serial queue for CoreMotion delivery. Delivering to `.main`
-// made `latest` go stale (and the synth note "stick") whenever SwiftUI
-// rendering backed up the main thread -- this queue is never touched by UI
+// lets `latest` go stale (and the synth note "stick") whenever SwiftUI
+// rendering backs up the main thread -- this queue is never touched by UI
 // work, so samples keep flowing regardless of render load.
 private let motionQueue: OperationQueue = {
   let q = OperationQueue()

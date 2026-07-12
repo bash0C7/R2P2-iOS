@@ -1,9 +1,10 @@
-# Host build used only to link the bridge smoke test (Task 2). Its gem set is
-# kept in EXACT parity with build_config/r2p2-picoruby-ios-sim.rb so the smoke
-# test, which links against THIS build, actually predicts what the reduced
-# ios-sim libmruby.a can run. Toolchain is host-appropriate (plain MRuby::Build,
-# no -arch/-isysroot). PICORB_PLATFORM_POSIX is dropped to mirror ios-sim for
-# maximum parity (it builds clean on the host without it).
+# Host build used only to link the bridge smoke test (`rake smoke`). Its gem
+# set is the shared core every iOS cross-build starts from (picoruby VM +
+# mruby-compiler; each iOS config adds its own gems on top), so the smoke
+# test, which links against THIS build, predicts what that shared core can
+# run. Toolchain is host-appropriate (plain MRuby::Build, no -arch/-isysroot).
+# PICORB_PLATFORM_POSIX is omitted to match the bare-VM iOS configs (the host
+# builds clean without it).
 MRuby::Build.new("host") do |conf|
   conf.toolchain :clang
 

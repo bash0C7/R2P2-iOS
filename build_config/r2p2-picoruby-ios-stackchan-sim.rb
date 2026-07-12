@@ -1,31 +1,29 @@
-# iOS Simulator (arm64) cross-build for the Stack-chan example: the bare picoruby
-# VM/compiler (identical to r2p2-picoruby-ios-sim.rb) PLUS picoruby-ble built with
-# its Apple/Darwin (CoreBluetooth) port. EXAMPLE-SCOPED — the base sim config stays
-# BLE-free so the REPL keeps linking standalone.
+# iOS Simulator (arm64) cross-build for the Stack-chan example: the bare
+# picoruby VM/compiler PLUS picoruby-ble built with its Apple/Darwin
+# (CoreBluetooth) port. EXAMPLE-SCOPED — BLE lives only in this config so
+# every other target's libmruby.a keeps linking without it.
 #
-# The Darwin BLE path uses NEITHER cyw43 (rp2040-only radio) NOR mbedtls at the C
-# layer: ports/darwin/*.c + src/*.c reference no CYW43_*/MbedTLS_* C symbols (their
-# only mentions are runtime Ruby `require`s). picoruby-ble's mrbgem.rake still
-# DECLARES add_dependency on those gems, which would (a) force them to be compiled
-# and (b) drag in their rp2040/posix ports that this build never produces. We strip
-# those two dependency declarations from the loaded spec so dependency resolution
-# neither pulls nor fails on them. See r2p2-picoruby-ios-sim.rb for the load-bearing
-# ABI defines copied verbatim below.
+# picoruby-ble declares add_dependency on picoruby-mbedtls / picoruby-cyw43,
+# which the Darwin BLE path never uses; the conf.gem block below strips them
+# (full rationale there). The cc.defines below are the define set shared by
+# every cross-build config in this repo; MRB_INT64 / MRB_NO_BOXING in
+# particular fix the mrb_value ABI.
 
 sdk_path = `xcrun --sdk iphonesimulator --show-sdk-path`.strip
 clang    = `xcrun --sdk iphonesimulator --find clang`.strip
 ar       = `xcrun --sdk iphonesimulator --find ar`.strip
 ios_min  = ENV["IOS_MIN"] || "17.0"
 
-# vendor/picoruby (upstream master) defines build.posix?/wasm? but NOT darwin?.
-# The bash0C7 fork's picoruby-ble mrbgem.rake references build.darwin?, so the
-# predicate must exist or loading that gem raises NoMethodError. We define it to
-# return false: the fork's `if build.darwin?` block (swift build of a macOS dylib +
-# -lPicoBLEDarwin linker flags + its own ports glob) is the WRONG thing for an iOS
-# static-.a cross-build. Instead this config does the Darwin port selection itself
-# (conf.ports :darwin) and adds the Swift-header include path — keeping all iOS glue
-# in R2P2-iOS, not the fork. The Swift backend links into the APP target (Phase 4),
-# not into libmruby.a; pble_* stay undefined in the .a, which is expected.
+# picoruby-ble's mrbgem.rake calls build.darwin?; on a picoruby tree whose
+# build system lacks that predicate, loading the gem raises NoMethodError, so
+# install a false fallback (guarded — a tree that defines darwin? keeps its
+# own). false is the right answer for an iOS static-.a cross-build: the gem's
+# `if build.darwin?` branch (swift build of a macOS dylib + -lPicoBLEDarwin
+# linker flags + its own ports glob) is macOS-host glue. This config does the
+# Darwin port selection itself (conf.ports :darwin) and adds the Swift-header
+# include path — keeping the iOS glue in this repo, not the picoruby tree.
+# The Swift backend links into the APP target, not into libmruby.a; pble_*
+# stay undefined in the .a, which is expected.
 module MRuby
   class Build
     def darwin?
@@ -37,9 +35,9 @@ end
 MRuby::CrossBuild.new("ios-stackchan-sim") do |conf|
   conf.toolchain :clang
 
-  # The gcc/clang toolchain sets -lm by default, but libm is part of
-  # libSystem on Apple platforms and iOS Simulator explicitly marks it
-  # unavailable as a separate library. Remove it to avoid link failure.
+  # The gcc/clang toolchain adds -lm by default, but libm is part of libSystem
+  # on Apple platforms and the SDK marks it unavailable as a separate library.
+  # Remove it to avoid link failure.
   conf.linker.libraries.delete("m")
 
   conf.cc.command       = clang
@@ -65,7 +63,8 @@ MRuby::CrossBuild.new("ios-stackchan-sim") do |conf|
   conf.gem core: "mruby-compiler"
 
   # picoruby-ble's mrblib uses Array#pack / String#<< / sprintf. These live in
-  # PicoRuby's stdlib.gembox (vm_mruby branch) which the minimal base config omits.
+  # PicoRuby's stdlib gembox, which this bare-VM gem set omits, so pull the
+  # three mruby gems in directly.
   mruby_mrbgems = "#{MRUBY_ROOT}/mrbgems/picoruby-mruby/lib/mruby/mrbgems"
   conf.gem gemdir: "#{mruby_mrbgems}/mruby-string-ext"
   conf.gem gemdir: "#{mruby_mrbgems}/mruby-pack"
@@ -77,8 +76,9 @@ MRuby::CrossBuild.new("ios-stackchan-sim") do |conf|
   # in place of the default rp2040/posix port.
   conf.ports :darwin
 
-  # The gem lives in the bash0C7 picoruby fork worktree (its iOS-ready
-  # Package.swift + generated PicoBLEDarwin-Swift.h), not in vendor/picoruby.
+  # Defaults to vendor/picoruby's picoruby-ble (the fork tree carries the
+  # darwin port, its Package.swift, and the generated PicoBLEDarwin-Swift.h);
+  # PICORUBY_BLE_GEMDIR points at an alternate worktree.
   ble_gemdir = ENV["PICORUBY_BLE_GEMDIR"] ||
     File.expand_path("../vendor/picoruby/mrbgems/picoruby-ble", __dir__)
 
@@ -86,9 +86,10 @@ MRuby::CrossBuild.new("ios-stackchan-sim") do |conf|
   # port's Swift package ext dir, not next to the .c. Put it on the include path.
   conf.cc.include_paths << "#{ble_gemdir}/ports/darwin/ext"
 
-  # picoruby-ble declares add_dependency 'picoruby-mbedtls' and 'picoruby-cyw43'.
-  # The Darwin C path references neither (verified: no CYW43_*/MbedTLS_* C symbols
-  # in src/*.c or ports/darwin/*.c). Dependency resolution would otherwise compile
+  # picoruby-ble declares add_dependency 'picoruby-mbedtls' and 'picoruby-cyw43'
+  # (rp2040-only radio). The Darwin C path references neither: src/*.c and
+  # ports/darwin/*.c contain no CYW43_*/MbedTLS_* C symbols — their only mentions
+  # are runtime Ruby `require`s. Dependency resolution would otherwise compile
   # both gems and their rp2040/posix ports (and their own transitive picoruby-rng /
   # picoruby-base64), which this build does not produce, yielding undefined
   # CYW43_*/MbedTLS_*/rng_* symbols the Darwin path never calls. The add_dependency

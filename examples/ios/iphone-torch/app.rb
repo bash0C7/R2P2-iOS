@@ -5,12 +5,12 @@
 # vm_call(vm, "on"/"off", "") invokes $app.on / $app.off and returns whatever this
 # prints (captured stdout), which the UI appends to its log.
 #
-# WHY THIS PROVES IT IS RUBY: app.rb is compiled at runtime, in-app, by PicoRuby's
-# prism compiler (VMExecutor.start -> vm_open). The behaviour below can be changed
-# with NO rebuild of the C gem or the Swift backend — only this resource file. ON
-# runs a Ruby-defined BLINK (flash N times via a `while` loop + sleep_ms, then stay
-# lit) and counts presses in Ruby; OFF turns the torch off. The flashing pattern,
-# the count, the timing — all of it lives here in Ruby, not in C and not in Swift.
+# app.rb is compiled at runtime, in-app, by PicoRuby's prism compiler
+# (VMExecutor.start -> vm_open): the flashing pattern, the press count, and the
+# timing all live here in Ruby and change with no rebuild of the C gem or the
+# Swift backend — only this resource file. ON flashes BLINK_COUNT times (a
+# `while` loop + sleep_ms) then stays lit and counts presses; OFF turns the
+# torch off.
 BLINK_COUNT = 3     # change this, reinstall, and the torch flashes that many times
 BLINK_MS    = 120   # flash on/off duration in milliseconds
 
@@ -48,7 +48,7 @@ class TorchApp
 
   # Pure-Ruby blink: drive the gem primitive on/off in a loop, pausing with
   # sleep_ms (Kernel function from mruby-task; on iOS it real-time blocks via the
-  # bridge HAL). This is the "L チカ" — the loop is Ruby, the light is the hardware.
+  # bridge HAL).
   def blink(times)
     i = 0
     while i < times

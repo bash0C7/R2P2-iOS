@@ -2,19 +2,19 @@
 # the linked picoruby-net gem; on iOS it dials a raw BSD socket and runs the TLS
 # handshake through mbedTLS (picoruby-net's ports/posix/tls_client.c), seeded by the
 # picoruby-mbedtls/rng DARWIN entropy ports (SecRandomCopyBytes via -framework
-# Security). NO OpenSSL, and NO Apple URL-loading API — so App Transport Security
-# (which only governs NSURLSession/CFNetwork) is bypassed entirely.
+# Security). No OpenSSL and no Apple URL-loading API, so App Transport Security
+# (which only governs NSURLSession/CFNetwork) does not apply.
 #
 # vm_call(vm, "fetch", "") invokes $app.fetch and returns whatever this prints
 # (captured stdout), which the UI appends to its log.
 #
-# WHY THIS PROVES IT IS RUBY + iOS TLS: app.rb is compiled at runtime, in-app, by
-# PicoRuby's prism compiler. Change the host/path below, reinstall, and the request
-# changes with NO rebuild of libmruby.a or the Swift layer. A successful response
-# means the mbedTLS handshake completed on iOS using the Darwin entropy port.
+# app.rb is compiled at runtime, in-app, by PicoRuby's prism compiler: change the
+# host/path below, reinstall, and the request changes with no rebuild of
+# libmruby.a or the Swift layer. A successful response means the mbedTLS
+# handshake completed on iOS using the Darwin entropy port.
 #
-# NOTE: picoruby-net's posix TLS port sets MBEDTLS_SSL_VERIFY_NONE — it completes the
-# handshake but does NOT validate the server certificate. This example demonstrates
+# picoruby-net's posix TLS port sets MBEDTLS_SSL_VERIFY_NONE — it completes the
+# handshake but does not validate the server certificate. This example demonstrates
 # connectivity + handshake, not a trust decision.
 HOST = "example.com"
 PATH = "/"
@@ -22,6 +22,7 @@ PATH = "/"
 class NetApp
   def initialize
     @fetches = 0
+    @log = []
     log "ready: HTTPS GET https://#{HOST}#{PATH} on tap (mbedTLS over BSD socket)"
     flush_log
   end
@@ -44,11 +45,11 @@ class NetApp
   private
 
   def log(msg)
-    (@log ||= []).push(msg)
+    @log.push(msg)
   end
 
   def flush_log
-    return nil if @log.nil? || @log.empty?
+    return nil if @log.empty?
     out = @log.join("\n")
     @log = []
     print out

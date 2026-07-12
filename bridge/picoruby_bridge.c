@@ -71,9 +71,9 @@ char *repl_eval(const char *src) {
   dup2(fileno(cap), 1);
   dup2(fileno(cap), 2);
 
-  /* Allocate a fresh, zero-initialized heap for each eval.
-   * Using calloc (zero-initialized) ensures estalloc starts from a
-   * known-good state and stale pointers from a previous run do not persist. */
+  /* Allocate a fresh, zero-initialized heap for each eval so estalloc starts
+   * from a known-good state and stale pointers from a previous run do not
+   * persist. */
   uint8_t *heap = (uint8_t *)calloc(1, HEAP_SIZE);
   if (heap == NULL) {
     dup2(saved_out, 1); dup2(saved_err, 2);

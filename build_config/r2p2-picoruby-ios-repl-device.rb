@@ -1,7 +1,8 @@
 # iOS device (arm64, iphoneos SDK) full-REPL cross-build for picoruby →
 # libmruby.a (physical device). prism compiler + VM are baked in, so Ruby is
-# compiled & run at runtime in-app. Mirrors the cross-build shape of picoruby's
-# r2p2-picoruby-pico2.rb (target cc + host_command) and R2P2-macOS darwin defines.
+# compiled & run at runtime in-app. Follows the cross-build shape of picoruby's
+# r2p2-picoruby-pico2.rb (target cc + host_command) with the Darwin defines of
+# build_config/r2p2-picoruby-darwin.rb.
 #
 # Device counterpart of r2p2-picoruby-ios-repl-sim.rb; see that file for the
 # iOS-IS-POSIX rationale, the darwin port-chain (conf.ports :darwin, :posix),
@@ -15,9 +16,9 @@ ios_min  = ENV["IOS_MIN"] || "17.0"
 MRuby::CrossBuild.new("ios-repl-device") do |conf|
   conf.toolchain :clang
 
-  # The gcc/clang toolchain sets -lm by default, but libm is part of
-  # libSystem on Apple platforms and iOS Simulator explicitly marks it
-  # unavailable as a separate library. Remove it to avoid link failure.
+  # The gcc/clang toolchain adds -lm by default, but libm is part of libSystem
+  # on Apple platforms and the SDK marks it unavailable as a separate library.
+  # Remove it to avoid link failure.
   conf.linker.libraries.delete("m")
 
   conf.cc.command       = clang

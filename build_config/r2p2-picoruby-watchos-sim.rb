@@ -1,11 +1,10 @@
 # watchOS Simulator (arm64) cross-build for picoruby → libmruby.a for the
-# watchsimulator SDK. Same darwin defines as the iOS sim config; only the SDK
-# and version-min flag differ.
+# watchsimulator SDK: the bare picoruby VM/compiler (no example gems) with
+# the Darwin define set shared by every cross-build config in this repo.
 #
 # task_hal_ios.c (shared bridge) is safe here despite its name: it uses only
-# standard POSIX/Darwin APIs (clock_gettime, usleep) available on watchOS.
-# The "ios" in the filename is historical; it is the Darwin task HAL for all
-# Apple platforms in this repo.
+# standard POSIX/Darwin APIs (clock_gettime, usleep) available on watchOS —
+# it is the Darwin task HAL for every Apple platform in this repo.
 
 sdk_path    = `xcrun --sdk watchsimulator --show-sdk-path`.strip
 clang       = `xcrun --sdk watchsimulator --find clang`.strip
@@ -15,9 +14,9 @@ watchos_min = ENV["WATCHOS_MIN"] || "11.0"
 MRuby::CrossBuild.new("watchos-sim") do |conf|
   conf.toolchain :clang
 
-  # The gcc/clang toolchain sets -lm by default, but libm is part of
-  # libSystem on Apple platforms and watchOS Simulator explicitly marks it
-  # unavailable as a separate library. Remove it to avoid link failure.
+  # The gcc/clang toolchain adds -lm by default, but libm is part of libSystem
+  # on Apple platforms and the SDK marks it unavailable as a separate library.
+  # Remove it to avoid link failure.
   conf.linker.libraries.delete("m")
 
   conf.cc.command       = clang
