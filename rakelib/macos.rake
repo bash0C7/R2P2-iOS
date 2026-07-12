@@ -1,7 +1,5 @@
-# rakelib/macos.rake — macOS (Darwin) host-native build & run.
-# Relies on the main Rakefile's ROOT / PICORUBY_SRC / BUILD_DIR constants and
-# its `setup` task; adds the macos: namespace (check, build, run, single)
-# plus the brew openssl@3 flags the networking gembox needs.
+# macOS (Darwin) host-native build & run: the macos: namespace. Uses the main
+# Rakefile's ROOT / PICORUBY_SRC / BUILD_DIR constants and its `setup` task.
 
 # Brew openssl@3 prefix on LDFLAGS/CFLAGS so the networking gembox can find
 # ssl/crypto. Inert if openssl@3 isn't brew-installed.
