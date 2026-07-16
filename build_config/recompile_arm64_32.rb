@@ -18,10 +18,18 @@ AR        = `xcrun --sdk watchos --find ar`.strip
 # (esp. MRB_INT64 / MRB_NO_BOXING) yields a libmruby.a whose objects disagree
 # on the mrb_value layout — a silent on-device corruption.
 CONFIG_RB = File.join(__dir__, "r2p2-picoruby-watchos-device.rb")
-defs = File.read(CONFIG_RB).scan(/conf\.cc\.defines\s*<<\s*"([^"]+)"/).flatten
+config_src = File.read(CONFIG_RB)
+defs = config_src.scan(/conf\.cc\.defines\s*<<\s*"([^"]+)"/).flatten
 raise "no cc.defines found in #{CONFIG_RB}" if defs.empty?
 puts "Defines from build_config (#{defs.size}): #{defs.join(' ')}"
 DEFINES = defs.map { |d| "-D#{d}" }.join(" ")
+
+# The deployment target must match for the same reason: parse the config's
+# `watchos_min = ENV["WATCHOS_MIN"] || <default>` so recompiled objects carry
+# the same -mwatchos-version-min as the originals.
+min_default = config_src[/watchos_min\s*=\s*ENV\["WATCHOS_MIN"\]\s*\|\|\s*"([^"]+)"/, 1]
+raise "no watchos_min derivation found in #{CONFIG_RB}" unless min_default
+WATCHOS_MIN = ENV["WATCHOS_MIN"] || min_default
 
 INCLUDES = [
   "build/watchos-device/include",
@@ -36,7 +44,7 @@ INCLUDES = [
 ].map { |p| "-I #{File.join(ROOT, p).shellescape}" }.join(" ")
 
 BASE_FLAGS = "-arch arm64_32 -isysroot #{SDK.shellescape} " \
-             "-mwatchos-version-min=26.0 -O2 " \
+             "-mwatchos-version-min=#{WATCHOS_MIN} -O2 " \
              "#{DEFINES} #{INCLUDES}"
 
 def arm64?(path)
