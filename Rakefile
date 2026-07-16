@@ -114,10 +114,12 @@ def sim_install_launch(device_label, app, bundle_id)
 end
 
 # UUID of the first connected device matching `pattern` (/iPhone|iPad/ or
-# /Watch/); `label` names it in the error message.
+# /Watch/); `label` names it in the error message. Skips "unavailable" rows
+# (e.g. another of the user's devices that is paired but not present) so a
+# stale pairing never shadows the device actually connected right now.
 def devicectl_udid(pattern, label)
   dev = `xcrun devicectl list devices`.lines
-        .grep(pattern).first
+        .grep(pattern).reject { |l| l =~ /\bunavailable\b/ }.first
         &.match(/([0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12})/)&.captures&.first
   raise "no connected #{label} (xcrun devicectl list devices)" unless dev
   dev
