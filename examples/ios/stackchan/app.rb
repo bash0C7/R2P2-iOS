@@ -1,18 +1,18 @@
 # Stack-chan controller — the bundled, fixed Ruby that the persistent PicoRuby
-# VM runs on iOS. This is NOT user-editable and is not downloaded: PicoRuby is
+# VM runs on iOS. It is not user-editable and not downloaded: PicoRuby is
 # simply the implementation language for the app's own behavior (Guideline
 # 2.5.2-free).
 #
-# The frame encoders are inlined from the PC CLI's verified codec
+# The frame encoders mirror the PC CLI's codec
 # (stackchan-picoruby/pc/stackchan/lib/stackchan/ble/{frame_codec,face_table,
-# led_color_table}.rb). Two adaptations for the reduced iOS VM and the
+# led_color_table}.rb), with two differences for the reduced iOS VM and the
 # Swift->VM call seam:
 #   1. No require_relative / module namespacing — the bundled app is one source.
 #   2. String keys (not Symbols) because vm_call delivers a single String arg
 #      from the Swift UI. The emitted frames are byte-identical to the PC codec.
 #
-# The wire frame format and the left/right reversal are load-bearing and were
-# verified on real hardware; do not "fix" SIDE_TO_CHAR.
+# The wire frame format and the left/right reversal match the hardware and are
+# load-bearing; do not "fix" SIDE_TO_CHAR.
 
 module FrameCodec
   # API "left"/"right" are StackChan's own perspective (its hands); the firmware
@@ -112,20 +112,17 @@ end
 # (CoreBluetooth) port: it scans for a Stack-chan advertising the Nordic UART
 # Service (NUS), connects, discovers the RX characteristic value handle, and
 # writes each ASCII frame to it. picoruby-ble is only present in the on-device /
-# Simulator VM, so this file guards every reference behind `BLE_AVAILABLE`
-# (see above): under host CRuby (test_frames.rb) BLE is absent and the recording
-# `BleLink` stub is used instead, keeping the frame encoders verifiable without a
-# radio.
+# Simulator VM, so this file guards every reference behind `BLE_AVAILABLE`:
+# under host CRuby (test_frames.rb) BLE is absent and the recording `BleLink`
+# stub is used instead, keeping the frame encoders verifiable without a radio.
 
 # The Nordic UART Service and its RX (write) characteristic, the Stack-chan
-# firmware's command channel. `BLE::Utils.uuid` yields the 16-byte little-endian
-# form that the discovered service/characteristic `uuid128` fields also use, so
-# the two compare directly.
+# firmware's command channel.
 NUS_SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e"
 NUS_RX_CHAR_UUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"
-# The discovered service/characteristic :uuid128 fields are 16 raw little-endian
-# bytes. bind_rx renders them to big-endian hex and matches against these
-# dash-stripped constants (avoids calling BLE::Utils.uuid unnecessarily).
+# The discovered service/characteristic :uuid128 fields are 16 big-endian bytes
+# (textual UUID order). bind_rx renders them to hex and matches against these
+# dash-stripped constants (avoids calling BLE::Utils.uuid).
 NUS_SERVICE_UUID128_HEX = "6e400001b5a3f393e0a9e50e24dcca9e"
 NUS_RX_CHAR_UUID128_HEX = "6e400002b5a3f393e0a9e50e24dcca9e"
 HEX_DIGITS = "0123456789abcdef"
@@ -133,7 +130,7 @@ HEX_DIGITS = "0123456789abcdef"
 STACKCHAN_NAME = "StackChan"
 
 # Is the picoruby-ble `BLE` class linked into this VM? The reduced PicoRuby VM
-# (prism compiler) does NOT implement the `defined?` keyword — it compiles
+# (prism compiler) does not implement the `defined?` keyword — it compiles
 # `defined?(BLE)` as a method call that raises at boot — so probe for the
 # constant by referencing it and rescuing the NameError. True in the on-device /
 # Simulator VM (picoruby-ble linked); false under host CRuby (test_frames.rb),
@@ -256,7 +253,7 @@ if BLE_AVAILABLE
     private
 
     # Walk discovered services for the NUS, then its RX characteristic. Match by
-    # rendering each discovered :uuid128 (16 little-endian bytes) to big-endian hex.
+    # rendering each discovered :uuid128 (16 big-endian bytes) to hex.
     def bind_rx
       @ble.services.each do |service|
         next unless uuid128_hex(service[:uuid128]) == NUS_SERVICE_UUID128_HEX

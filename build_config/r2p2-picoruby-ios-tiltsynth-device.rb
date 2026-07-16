@@ -1,6 +1,7 @@
-# iOS device (arm64) cross-build for the tilt-synth example. See
-# r2p2-picoruby-ios-tiltsynth-sim.rb for the example-scoped rationale; this
-# is the iphoneos-SDK twin.
+# iOS device (arm64) cross-build for the tilt-synth example. Device
+# counterpart of r2p2-picoruby-ios-tiltsynth-sim.rb; see that file for the
+# example-scoped rationale. Differs only in the iphoneos SDK and device
+# version-min flag.
 
 sdk_path = `xcrun --sdk iphoneos --show-sdk-path`.strip
 clang    = `xcrun --sdk iphoneos --find clang`.strip
@@ -10,12 +11,15 @@ ios_min  = ENV["IOS_MIN"] || "17.0"
 MRuby::CrossBuild.new("ios-tiltsynth-device") do |conf|
   conf.toolchain :clang
 
+  # The gcc/clang toolchain adds -lm by default, but libm is part of libSystem
+  # on Apple platforms and the SDK marks it unavailable as a separate library.
+  # Remove it to avoid link failure.
   conf.linker.libraries.delete("m")
 
   conf.cc.command       = clang
   conf.linker.command   = clang
   conf.archiver.command = ar
-  conf.cc.host_command  = "clang"
+  conf.cc.host_command  = "clang"   # builds mrbc / compiler for the host
 
   conf.cc.flags << "-arch" << "arm64"
   conf.cc.flags << "-isysroot" << sdk_path

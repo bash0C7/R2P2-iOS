@@ -1,7 +1,7 @@
 # iOS Simulator (arm64) cross-build for the Networking example: the full-REPL
 # posix?=true VM (identical gembox set to r2p2-picoruby-ios-repl-sim.rb) PLUS the
 # picoruby-net HTTP/TLS stack built against its POSIX port (UNIX sockets + mbedTLS).
-# EXAMPLE-SCOPED — the base/REPL configs stay networking-free so they keep linking
+# EXAMPLE-SCOPED — the REPL configs stay networking-free so they keep linking
 # without the socket/TLS surface.
 #
 # iOS IS POSIX, so picoruby-net's `if build.posix?` branch compiles ports/posix/
@@ -18,7 +18,7 @@
 #                          whose posix SSLSocket links OpenSSL (SSL_connect, ...). iOS
 #                          ships no linkable OpenSSL, so that path leaves unresolved
 #                          OpenSSL symbols. It is the WRONG gem for iOS.
-# We add picoruby-net so TLS goes entirely through mbedTLS + the darwin entropy port.
+# picoruby-net keeps TLS entirely on mbedTLS + the darwin entropy port.
 
 sdk_path = `xcrun --sdk iphonesimulator --show-sdk-path`.strip
 clang    = `xcrun --sdk iphonesimulator --find clang`.strip
@@ -28,9 +28,9 @@ ios_min  = ENV["IOS_MIN"] || "17.0"
 MRuby::CrossBuild.new("ios-net-sim") do |conf|
   conf.toolchain :clang
 
-  # The gcc/clang toolchain sets -lm by default, but libm is part of
-  # libSystem on Apple platforms and iOS Simulator explicitly marks it
-  # unavailable as a separate library. Remove it to avoid link failure.
+  # The gcc/clang toolchain adds -lm by default, but libm is part of libSystem
+  # on Apple platforms and the SDK marks it unavailable as a separate library.
+  # Remove it to avoid link failure.
   conf.linker.libraries.delete("m")
 
   conf.cc.command       = clang

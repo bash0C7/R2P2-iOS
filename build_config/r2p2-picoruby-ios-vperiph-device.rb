@@ -1,13 +1,12 @@
-# iOS device (iphoneos arm64) cross-build for the Virtual Peripheral example: the bare
-# picoruby VM/compiler (identical to r2p2-picoruby-ios-device.rb) PLUS picoruby-ble
-# built with its Apple/Darwin (CoreBluetooth) port. EXAMPLE-SCOPED — the base device
-# config stays BLE-free so the REPL keeps linking standalone.
+# iOS device (iphoneos arm64) cross-build for the Virtual Peripheral example:
+# the bare picoruby VM/compiler PLUS picoruby-ble built with its Apple/Darwin
+# (CoreBluetooth) port. EXAMPLE-SCOPED — BLE lives only in this config so
+# every other target's libmruby.a keeps linking without it.
 #
-# See r2p2-picoruby-ios-stackchan-sim.rb for the full rationale on the darwin?
-# predicate, the conf.ports :darwin port selection, and stripping the unused
-# picoruby-mbedtls / picoruby-cyw43 dependencies. This file differs from it ONLY in
-# the iphoneos SDK / version-min flag (the device toolchain), copied verbatim from
-# r2p2-picoruby-ios-device.rb.
+# Device counterpart of r2p2-picoruby-ios-vperiph-sim.rb; see that file for
+# the full rationale on the darwin? fallback, the conf.ports :darwin port
+# selection, and stripping the unused picoruby-mbedtls / picoruby-cyw43
+# dependencies. Differs only in the iphoneos SDK and device version-min flag.
 
 sdk_path = `xcrun --sdk iphoneos --show-sdk-path`.strip
 clang    = `xcrun --sdk iphoneos --find clang`.strip
@@ -25,9 +24,9 @@ end
 MRuby::CrossBuild.new("ios-vperiph-device") do |conf|
   conf.toolchain :clang
 
-  # The gcc/clang toolchain sets -lm by default, but libm is part of
-  # libSystem on Apple platforms and iOS Simulator explicitly marks it
-  # unavailable as a separate library. Remove it to avoid link failure.
+  # The gcc/clang toolchain adds -lm by default, but libm is part of libSystem
+  # on Apple platforms and the SDK marks it unavailable as a separate library.
+  # Remove it to avoid link failure.
   conf.linker.libraries.delete("m")
 
   conf.cc.command       = clang

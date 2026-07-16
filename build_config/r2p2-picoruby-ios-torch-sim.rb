@@ -1,11 +1,11 @@
-# iOS Simulator (arm64) cross-build for the iPhone Torch example: the bare picoruby
-# VM/compiler (identical to r2p2-picoruby-ios-sim.rb) PLUS the local
-# picoruby-iphone-torch gem built with its Darwin port. EXAMPLE-SCOPED — the base
-# sim config stays torch-free so the REPL keeps linking standalone.
+# iOS Simulator (arm64) cross-build for the iPhone Torch example: the bare
+# picoruby VM/compiler PLUS the local picoruby-iphone-torch gem built with its
+# Darwin port. EXAMPLE-SCOPED — torch lives only in this config so every other
+# target's libmruby.a keeps linking without it.
 #
 # The Darwin port (ports/darwin/torch.c) references only ptorch_* (provided by the
 # PicoTorchDarwin Swift package at APP link time), so it pulls no extra gem deps.
-# picoruby-ble-style mbedtls/cyw43 dependency stripping and the darwin? monkeypatch
+# picoruby-ble-style mbedtls/cyw43 dependency stripping and the darwin? fallback
 # are NOT needed here: this gem declares no add_dependency and its mrbgem.rake never
 # calls build.darwin?.
 
@@ -17,9 +17,9 @@ ios_min  = ENV["IOS_MIN"] || "17.0"
 MRuby::CrossBuild.new("ios-torch-sim") do |conf|
   conf.toolchain :clang
 
-  # The gcc/clang toolchain sets -lm by default, but libm is part of
-  # libSystem on Apple platforms and iOS Simulator explicitly marks it
-  # unavailable as a separate library. Remove it to avoid link failure.
+  # The gcc/clang toolchain adds -lm by default, but libm is part of libSystem
+  # on Apple platforms and the SDK marks it unavailable as a separate library.
+  # Remove it to avoid link failure.
   conf.linker.libraries.delete("m")
 
   conf.cc.command       = clang

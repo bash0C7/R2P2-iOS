@@ -1,7 +1,7 @@
 # iOS Simulator (arm64) cross-build for the MbedTLS example: the bare picoruby
-# VM/compiler (identical to r2p2-picoruby-ios-sim.rb) PLUS picoruby-mbedtls built
-# with its Apple/Darwin port. EXAMPLE-SCOPED — the base sim config stays
-# mbedtls-free so the REPL keeps linking standalone.
+# VM/compiler PLUS picoruby-mbedtls built with its Apple/Darwin port.
+# EXAMPLE-SCOPED — mbedtls lives only in this config so every other target's
+# libmruby.a keeps linking without it.
 #
 # picoruby-mbedtls depends on picoruby-rng + picoruby-base64; conf.gem resolves
 # them. conf.ports :darwin makes both mbedtls (ports/darwin/timing_alt.c) and rng
@@ -16,9 +16,9 @@ ios_min  = ENV["IOS_MIN"] || "17.0"
 MRuby::CrossBuild.new("ios-mbedtls-sim") do |conf|
   conf.toolchain :clang
 
-  # The gcc/clang toolchain sets -lm by default, but libm is part of
-  # libSystem on Apple platforms and iOS Simulator explicitly marks it
-  # unavailable as a separate library. Remove it to avoid link failure.
+  # The gcc/clang toolchain adds -lm by default, but libm is part of libSystem
+  # on Apple platforms and the SDK marks it unavailable as a separate library.
+  # Remove it to avoid link failure.
   conf.linker.libraries.delete("m")
 
   conf.cc.command       = clang

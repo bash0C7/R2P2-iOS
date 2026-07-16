@@ -1,7 +1,7 @@
 # iOS Simulator (arm64) cross-build for the RNG example: the bare picoruby
-# VM/compiler (identical to r2p2-picoruby-ios-sim.rb) PLUS picoruby-rng built with
-# its Apple/Darwin port (ports/darwin/rng.c -> SecRandomCopyBytes). EXAMPLE-SCOPED —
-# the base sim config stays rng-free so the REPL keeps linking standalone.
+# VM/compiler PLUS picoruby-rng built with its Apple/Darwin port
+# (ports/darwin/rng.c -> SecRandomCopyBytes). EXAMPLE-SCOPED — rng lives only
+# in this config so every other target's libmruby.a keeps linking without it.
 #
 # picoruby-rng's posix port open()s /dev/urandom, which iOS sandboxes. conf.ports
 # :darwin makes effective_ports = [darwin], so gem.rb compiles ports/darwin/rng.c
@@ -16,9 +16,9 @@ ios_min  = ENV["IOS_MIN"] || "17.0"
 MRuby::CrossBuild.new("ios-rng-sim") do |conf|
   conf.toolchain :clang
 
-  # The gcc/clang toolchain sets -lm by default, but libm is part of
-  # libSystem on Apple platforms and iOS Simulator explicitly marks it
-  # unavailable as a separate library. Remove it to avoid link failure.
+  # The gcc/clang toolchain adds -lm by default, but libm is part of libSystem
+  # on Apple platforms and the SDK marks it unavailable as a separate library.
+  # Remove it to avoid link failure.
   conf.linker.libraries.delete("m")
 
   conf.cc.command       = clang

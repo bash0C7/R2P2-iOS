@@ -1,12 +1,12 @@
-# iOS Simulator (arm64) cross-build for the IO.console example: the bare picoruby
-# VM/compiler (identical to r2p2-picoruby-ios-sim.rb) PLUS picoruby-io-console
-# built with its Apple/Darwin port. EXAMPLE-SCOPED — the base sim config stays
-# io-console-free so the REPL keeps linking standalone.
+# iOS Simulator (arm64) cross-build for the IO.console example: the bare
+# picoruby VM/compiler PLUS picoruby-io-console built with its Apple/Darwin
+# port. EXAMPLE-SCOPED — io-console lives only in this config so every other
+# target's libmruby.a keeps linking without it.
 #
 # The posix port drives stdin via termios. iOS has no controlling TTY, so the
 # Darwin port (ports/darwin/io-console.c) splits on TargetConditionals: no-TTY
-# stubs for iOS, termios reuse for macOS. conf.ports :darwin selects it. No extra
-# frameworks or gem dependencies.
+# stubs for iOS, termios reuse for macOS. conf.ports :darwin selects it. No
+# extra frameworks or gem dependencies.
 
 sdk_path = `xcrun --sdk iphonesimulator --show-sdk-path`.strip
 clang    = `xcrun --sdk iphonesimulator --find clang`.strip
@@ -16,9 +16,9 @@ ios_min  = ENV["IOS_MIN"] || "17.0"
 MRuby::CrossBuild.new("ios-io-console-sim") do |conf|
   conf.toolchain :clang
 
-  # The gcc/clang toolchain sets -lm by default, but libm is part of
-  # libSystem on Apple platforms and iOS Simulator explicitly marks it
-  # unavailable as a separate library. Remove it to avoid link failure.
+  # The gcc/clang toolchain adds -lm by default, but libm is part of libSystem
+  # on Apple platforms and the SDK marks it unavailable as a separate library.
+  # Remove it to avoid link failure.
   conf.linker.libraries.delete("m")
 
   conf.cc.command       = clang
