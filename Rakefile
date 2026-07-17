@@ -6,10 +6,6 @@ PICORUBY_REPO = ENV["PICORUBY_REPO"] || "https://github.com/bash0C7/picoruby.git
 PICORUBY_REF  = ENV["PICORUBY_REF"]  || "port-darwin"
 PICORUBY_SRC  = File.join(ROOT, "vendor", "picoruby")
 BUILD_DIR     = File.join(ROOT, "build")
-EXAMPLE       = ENV["EXAMPLE"] || "repl"
-APP_DIR       = File.join(ROOT, "examples", "ios", EXAMPLE)
-VENDOR_DIR    = File.join(APP_DIR, "Vendor")
-BUNDLE_ID     = "com.bash0c7.picoruby.PicoRubyRunner"
 
 def mruby_env(cfg)
   { "MRUBY_BUILD_DIR" => BUILD_DIR, "MRUBY_CONFIG" => File.absolute_path(cfg) }
@@ -132,22 +128,27 @@ def device_install_launch(pattern, label, app, bundle_id)
   sh "xcrun devicectl device process launch --console --device #{dev} #{bundle_id}"
 end
 
-desc "Verify iOS build prerequisites"
+desc "Verify iOS/watchOS cross-build prerequisites (host builds: rake macos:check)"
 task :check do
+  failures = []
   if File.directory?("/Applications/Xcode.app") &&
      system("xcrun", "--sdk", "iphonesimulator", "--show-sdk-path", out: File::NULL, err: File::NULL)
     puts "iOS SDK:    ok"
   else
-    abort "iOS SDK:    missing — install full Xcode.app (App Store); CLT alone is not enough"
+    warn "iOS SDK:    missing — install full Xcode.app (App Store); CLT alone is not enough"
+    failures << "iOS SDK"
   end
   if system("which", "xcodegen", out: File::NULL, err: File::NULL)
     puts "xcodegen:   ok"
   else
     warn "xcodegen:   missing — run `brew install xcodegen`"
+    failures << "xcodegen"
   end
+  abort "check failed: #{failures.join(", ")}" unless failures.empty?
+  puts "ok — next: rake ios (repl example on the Simulator, no signing needed)"
 end
 
-desc "Fetch picoruby into vendor/picoruby"
+desc "Fetch picoruby into vendor/picoruby (env: PICORUBY_REPO / PICORUBY_REF; ~1.2GB with submodules)"
 task :setup do
   unless Dir.exist?(PICORUBY_SRC)
     sh "git clone --recursive --branch #{PICORUBY_REF.shellescape} " \
@@ -156,7 +157,7 @@ task :setup do
   generate_prism_templates
 end
 
-desc "Re-fetch PICORUBY_REF into the existing vendor/picoruby"
+desc "Re-fetch PICORUBY_REF into the existing vendor/picoruby (env: PICORUBY_REPO / PICORUBY_REF)"
 task :refresh do
   raise "vendor/picoruby absent; run `rake setup`" unless Dir.exist?(PICORUBY_SRC)
   sh "git -C #{PICORUBY_SRC.shellescape} fetch #{PICORUBY_REPO.shellescape} #{PICORUBY_REF.shellescape}"
@@ -185,7 +186,7 @@ def define_ios_example(name:, label:, dir:, scheme:, lib_phrase:, device_lib_phr
 
   namespace :ios do
     namespace name do
-      desc "Cross-build libmruby.a (Simulator) #{lib_phrase} and stage under #{vendor_rel}"
+      desc "Cross-build libmruby.a (Simulator) #{lib_phrase} and stage under #{vendor_rel} (env: IOS_MIN)"
       task lib: :setup do
         stage_libmruby("r2p2-picoruby-ios-#{name}-sim.rb", "ios-#{name}-sim", vendor)
       end
@@ -210,7 +211,7 @@ def define_ios_example(name:, label:, dir:, scheme:, lib_phrase:, device_lib_phr
       task all: [:lib, :gen, :build, :run]
 
       namespace :device do
-        desc "Cross-build libmruby.a (iphoneos arm64) #{device_lib_phrase} and stage under #{vendor_rel}"
+        desc "Cross-build libmruby.a (iphoneos arm64) #{device_lib_phrase} and stage under #{vendor_rel} (env: IOS_MIN)"
         task lib: :setup do
           stage_libmruby("r2p2-picoruby-ios-#{name}-device.rb", "ios-#{name}-device", vendor)
         end
@@ -234,6 +235,8 @@ def define_ios_example(name:, label:, dir:, scheme:, lib_phrase:, device_lib_phr
 end
 
 IOS_EXAMPLES = [
+  { name: "repl",      label: "PicoRuby Runner",    dir: "repl",
+    scheme: "PicoRubyRunner",    lib_phrase: "WITH the full-REPL gembox" },
   { name: "stackchan", label: "Stack-chan",         dir: "stackchan",
     scheme: "Stackchan",         lib_phrase: "WITH picoruby-ble + Darwin port" },
   { name: "vperiph",   label: "Virtual Peripheral", dir: "virtual-peripheral",
@@ -249,58 +252,21 @@ IOS_EXAMPLES = [
 
 IOS_EXAMPLES.each { |example| define_ios_example(**example) }
 
-# The base ios: namespace builds the EXAMPLE-env-selected app (default: repl)
-# with the PicoRubyRunner project/scheme/bundle shared by those examples.
+# Bare ios:{lib,gen,build,run,all} and ios:device:* are aliases of ios:repl:* —
+# repl is the entry-point example `rake ios` builds. No desc on purpose, so
+# `rake -T` lists each pipeline once, under its example name.
 namespace :ios do
-  desc "Cross-build libmruby.a for the iOS Simulator and stage under app/Vendor"
-  task lib: :setup do
-    # Full REPL (posix?=true + darwin port-chain): the complete core/stdlib/shell
-    # gembox set. BLE-free, so the REPL example stays self-contained.
-    stage_libmruby("r2p2-picoruby-ios-repl-sim.rb", "ios-repl-sim", VENDOR_DIR)
-  end
-
-  desc "Generate the Xcode project from project.yml"
-  task :gen do
-    sh "cd #{APP_DIR.shellescape} && xcodegen generate"
-  end
-
-  desc "Build the app for the iOS Simulator"
-  task :build do
-    sim_build(File.join(APP_DIR, "PicoRubyRunner.xcodeproj"), "PicoRubyRunner",
-              File.join(ROOT, "build", "ios-app"))
-  end
-
-  desc "Boot a simulator, install, and launch the app"
-  task :run do
-    app = built_app(File.join(ROOT, "build", "ios-app"), "*-iphonesimulator",
-                    "PicoRubyRunner", "ios:build")
-    sim_install_launch("iPhone", app, BUNDLE_ID)
-  end
-
-  desc "Full headless pipeline: lib -> gen -> build -> run"
-  task all: [:lib, :gen, :build, :run]
+  task lib: "ios:repl:lib"
+  task gen: "ios:repl:gen"
+  task build: "ios:repl:build"
+  task run: "ios:repl:run"
+  task all: "ios:repl:all"
 
   namespace :device do
-    desc "Cross-build libmruby.a for an iOS device (iphoneos arm64) and stage under app/Vendor"
-    task lib: :setup do
-      stage_libmruby("r2p2-picoruby-ios-repl-device.rb", "ios-repl-device", VENDOR_DIR)
-    end
-
-    desc "Build the app, signed, for the connected iOS device"
-    task :build do
-      device_build(File.join(APP_DIR, "PicoRubyRunner.xcodeproj"), "PicoRubyRunner",
-                   File.join(ROOT, "build", "ios-app-device"), archs: "arm64")
-    end
-
-    desc "Install and launch the app on the connected iOS device"
-    task :run do
-      app = built_app(File.join(ROOT, "build", "ios-app-device"), "*-iphoneos",
-                      "PicoRubyRunner", "ios:device:build")
-      device_install_launch(/iPhone|iPad/, "iOS device", app, BUNDLE_ID)
-    end
-
-    desc "Full device pipeline: lib -> gen -> build -> run (needs a connected, signed device)"
-    task all: [:lib, "ios:gen", :build, :run]
+    task lib: "ios:repl:device:lib"
+    task build: "ios:repl:device:build"
+    task run: "ios:repl:device:run"
+    task all: "ios:repl:device:all"
   end
 
   namespace :vperiph do
@@ -324,7 +290,7 @@ namespace :watchos do
     watch_derived        = File.join(ROOT, "build", "watchos-app")
     watch_device_derived = File.join(ROOT, "build", "watchos-app-device")
 
-    desc "Cross-build libmruby.a for watchOS Simulator and stage under examples/watchos/led-toggle/Vendor"
+    desc "Cross-build libmruby.a for watchOS Simulator and stage under examples/watchos/led-toggle/Vendor (env: WATCHOS_MIN)"
     task lib: :setup do
       stage_libmruby("r2p2-picoruby-watchos-sim.rb", "watchos-sim", watch_vendor)
     end
@@ -350,7 +316,7 @@ namespace :watchos do
     task all: [:lib, :gen, :build, :run]
 
     namespace :device do
-      desc "Cross-build libmruby.a for watchOS device (arm64_32) and stage under examples/watchos/led-toggle/Vendor"
+      desc "Cross-build libmruby.a for watchOS device (arm64_32) and stage under examples/watchos/led-toggle/Vendor (env: WATCHOS_MIN)"
       task lib: :setup do
         stage_libmruby("r2p2-picoruby-watchos-device.rb", "watchos-device", watch_vendor)
         # stage_libmruby copies the fat/arm64 archive mruby just built; the
@@ -380,8 +346,11 @@ namespace :watchos do
   end
 end
 
-desc "Build and launch the PicoRuby iOS Runner on the Simulator"
+desc "Build and launch the repl example on the iOS Simulator (same as ios:repl:all)"
 task ios: "ios:all"
+
+desc "Default: rake ios"
+task default: :ios
 
 namespace :host do
   desc "Host build of picoruby (for the bridge smoke test)"
@@ -429,10 +398,10 @@ task smoke: "host:lib" do
   sh out
 end
 
-desc "Remove build output (keeps vendor/picoruby)"
+desc "Remove build output and every example's staged Vendor (keeps vendor/picoruby)"
 task :clean do
   rm_rf BUILD_DIR
-  rm_rf VENDOR_DIR
+  Dir.glob(File.join(ROOT, "examples", "*", "*", "Vendor")).each { |dir| rm_rf dir }
 end
 
 desc "Remove build output and vendor/picoruby"
