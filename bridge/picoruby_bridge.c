@@ -110,7 +110,7 @@ char *repl_eval(const char *src) {
     /* Workaround: skip mrb_close; the estalloc pool is reclaimed wholesale by
      * free(heap) below, and mrb_close's teardown crashes in est_free (vendor
      * estalloc defect). Mirrors vendor's own picoruby cleanup(). */
-    /* mrb_close(mrb); */
+    mrb_close(mrb);
     global_mrb = NULL;
   }
   free(heap);
@@ -210,7 +210,7 @@ void vm_close(void *vm) {
   /* Workaround: skip mrb_close; free(h->heap) below reclaims the whole
    * estalloc pool, and mrb_close's teardown crashes in est_free (vendor
    * estalloc defect). Mirrors vendor's own picoruby cleanup(). */
-  /* mrb_close(h->mrb); */
+  mrb_close(h->mrb);
   global_mrb = NULL;
   free(h->heap);
   free(h);

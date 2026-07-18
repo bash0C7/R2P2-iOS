@@ -73,3 +73,38 @@ microcontroller profile 値をハードコードしている。
   non-crash commit が存在しない（c9e0d1b で 3 要素が初めて同時成立、以降 d43aa7f まで不変）。
   → 弁別軸は commit ではなく build-param（define）側。CONSTRAINED_BASELINE_PROFILE と
   HEAP_PAGE_SIZE の単一変数コントラスト（Task 8 の param 軸）が本命。
+
+## Crash baseline (Task 6) — branch debug/crash-baseline
+- 変更: bridge/picoruby_bridge.c の mrb_close 復活（repl_eval 内 L113 相当、vm_close 内 L213 相当）。
+  build-param（build_config / project.yml）は一切変更せず canonical のまま。
+- observe 結果: `{unknown: 5}` over 5 runs（`rake ios:repl:observe`、frozen Sim 022CC935）——
+  rake の CRASH 分類自体は 5 回とも fire しなかった（下記「observe 分類の不発」参照）。
+- crash 判定: **決定論的 crash**。observe のタリーは `unknown` だが、host 側
+  `~/Library/Logs/DiagnosticReports/PicoRubyRunner-2026-07-18-2207xx.ips` を突き合わせると、
+  5 回の launch ウィンドウ（22:07:55 〜 22:08:19）に対し新規 .ips が **ちょうど 5 件**生成されており
+  （220755 / 220759 / 220806 / 220812 / 220819）、全件が同一シグネチャ:
+  `exception.type=EXC_BAD_ACCESS, signal=SIGSEGV, subtype=KERN_INVALID_ADDRESS at 0x0000000000000022`。
+  5/5 一致で non-deterministic ではない。
+- crash report: `~/Library/Logs/DiagnosticReports/PicoRubyRunner-2026-07-18-220819.ips`
+  （他 4 件も同一）。`xcrun atos -o build/ios-repl-app/.../PicoRubyRunner.debug.dylib -l 0x0 <offset>`
+  で faultingThread をシンボリケートすると:
+  ```
+  remove_free_block (in PicoRubyRunner.debug.dylib) + 0
+  est_free (in PicoRubyRunner.debug.dylib) + 128
+  closure #1 in ContentView.run() (in PicoRubyRunner.debug.dylib)  (ContentView.swift:47)
+  thunk for @escaping @callee_guaranteed @Sendable () -> ()
+  ```
+  ContentView.swift:47 は `guard let cstr = repl_eval(self.source) else { ... }` の呼び出し行。
+  仮説どおり `remove_free_block ← est_free ← repl_eval`（mrb_close 経由の teardown crash）が実測で確認できた。
+- observe CRASH 分類経路の発火: **しなかった**（Task 5 の検証結果 = バグを検出）。
+  `Rakefile` の `observe()` が見る `crash_dir` は
+  `~/Library/Developer/CoreSimulator/Devices/<udid>/data/Library/Logs/DiagnosticReports` だが、
+  このディレクトリ自体が今回の環境（macOS 26.5.2 + この frozen Sim）に**存在しない**
+  （実測: `ls` が `No such file or directory`）。実際の crash report は per-device data dir ではなく
+  **host 側** `~/Library/Logs/DiagnosticReports` に落ちる。加えて output ベースの fallback
+  （`EXC_BAD_ACCESS|est_free|remove_free_block` を stdout/stderr から grep）も、
+  `simctl launch --console-pty` が捕捉したログが `com.bash0c7.picoruby.PicoRubyRunner: <pid>` のみで
+  NSLog/print 出力が一切無い（クラッシュが `run()` 内の最初の `repl_eval` 呼び出し直後・print 前に
+  発生するため）まま不発。結果、5 回とも `crashed=false, ok=false` → `:unknown` に落ちた。
+  → **Task 5 の observe は crash_dir のパスが誤りで、実クラッシュを見逃す**（このタスクで判明した
+  新規の欠陥。Task 7 以降の bisect で observe を使うなら先に crash_dir 修正が要る）。
