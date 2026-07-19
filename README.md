@@ -127,18 +127,12 @@ watchOS/macOS.
 
 ### AOT native kernels (spinel/suppify)
 
-A hot Ruby method can be compiled to native code ahead of time with matz's
-spinel AOT compiler, wrapped into a PicoRuby mrbgem by
-[suppify](https://github.com/bash0C7/suppify), and embedded in an example so it
-runs natively inside the app. The interpreted original stays in-tree as the A/B
-baseline, and the app calls the same method name either way — on the full-mruby
-VM the gem registers on `kernel_module` at `mrb_open`, so no `require` is needed.
-
-The repl example carries a worked benchmark kernel
-(`examples/ios/repl/aot-kernel/` + `picoruby-bench_tick/`). On a real iPhone 16e
-the native version reaches ~50× over the interpreter once each call does enough
-work to amortize the boundary cost. The reproducible apply-and-embed procedure
-lives in the `aot-embed` skill (`.claude/skills/aot-embed/`).
+The repl example also AOT-compiles a Ruby kernel to a native library with matz's
+[spinel](https://github.com/matz/spinel) and
+[bash0C7/suppify](https://github.com/bash0C7/suppify), and runs it natively
+alongside the interpreted original. The generated gem is not committed — it is
+regenerated from its Ruby source, the way `vendor/picoruby` is fetched. See the
+[repl README](examples/ios/repl/README.md) for the procedure and numbers.
 
 ### macOS host
 

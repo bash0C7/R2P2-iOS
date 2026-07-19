@@ -124,18 +124,11 @@ platform namespace の型に沿って、他の iOS example や将来の watchOS/
 
 ### AOT ネイティブカーネル (spinel/suppify)
 
-ホットな Ruby メソッドは、matz の spinel AOT コンパイラでネイティブコードに事前
-コンパイルし、[suppify](https://github.com/bash0C7/suppify) で PicoRuby の mrbgem
-に包んで、example に組み込むとアプリ内でネイティブ実行できます。インタプリタ版は
-A/B のベースラインとして in-tree に残り、アプリはどちらでも同じメソッド名で呼び
-ます。full-mruby VM では gem が `mrb_open` 時に `kernel_module` へ登録されるので、
-`require` は要りません。
-
-repl example に実証済みのベンチカーネルが入っています
-(`examples/ios/repl/aot-kernel/` ＋ `picoruby-bench_tick/`)。iPhone 16e 実機では、
-1 回の呼び出しに十分な計算を寄せて境界コストが薄まると、ネイティブ版がインタプリタ
-の約 50 倍に達します。適用と組み込みを再現する手順は `aot-embed` skill
-(`.claude/skills/aot-embed/`) にまとめてあります。
+repl example では、Ruby カーネルを matz の [spinel](https://github.com/matz/spinel)
+と [bash0C7/suppify](https://github.com/bash0C7/suppify) でネイティブライブラリ化し、
+インタプリタ版と並べてネイティブ実行します。生成した gem はコミットしません
+— `vendor/picoruby` を fetch するのと同じく、Ruby ソースから再生成します。手順と
+計測値は [repl README](examples/ios/repl/README_jp.md) を参照してください。
 
 ### macOS ホスト
 
