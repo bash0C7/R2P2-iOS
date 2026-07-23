@@ -38,5 +38,5 @@ MRuby::Build.new do |conf|
   conf.gem core: "picoruby-bin-r2p2"
   conf.gem core: "picoruby-ble"
   conf.gem core: "picoruby-picotest"
-  conf.gem gemdir: "/Users/bash/dev/src/github.com/bash0C7/stackchan-picoruby-pc-picoruby/mrbgems/picoruby-stackchan-shared"
+  conf.gem gemdir: "/Users/bash/dev/src/github.com/bash0C7/stackchan-picoruby/mrbgems/picoruby-stackchan-shared"
 end
