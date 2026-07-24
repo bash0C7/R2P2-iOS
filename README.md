@@ -125,6 +125,15 @@ Only `ios:repl` is wired up today; the same `define_ios_example` /
 platform-namespace pattern extends to the other iOS examples and, later, to
 watchOS/macOS.
 
+### AOT native kernels (spinel/suppify)
+
+The repl example also AOT-compiles a Ruby kernel to a native library with matz's
+[spinel](https://github.com/matz/spinel) and
+[bash0C7/suppify](https://github.com/bash0C7/suppify), and runs it natively
+alongside the interpreted original. The generated gem is not committed — it is
+regenerated from its Ruby source, the way `vendor/picoruby` is fetched. See the
+[repl README](examples/ios/repl/README.md) for the procedure and numbers.
+
 ### macOS host
 
 macOS runs picoruby natively — host build modes, not example apps. Output

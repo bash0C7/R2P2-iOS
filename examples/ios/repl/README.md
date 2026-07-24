@@ -43,6 +43,10 @@ The Ruby VM, the bridge, and the build configs live at the repo root
 - `Sources/PicoRubyRunner-Bridging-Header.h` — exposes the C bridge to Swift.
 - `project.yml` — xcodegen project; compiles the bridge sources and links
   `-lmruby` (the staged `libmruby.a` under `Vendor/lib`).
+- `aot-kernel/bench_tick.{rb,rbs}` — the AOT kernel: single source of truth for
+  both the interpreted baseline and the native build (see AOT native kernel below).
+- `picoruby-bench_tick/` — the suppify-generated mrbgem. Not committed
+  (gitignored); regenerated from `aot-kernel/`.
 
 ## Build & run
 
@@ -65,6 +69,34 @@ for details.
 ```
 rake ios:device:all       # connected, signed device: lib -> gen -> build -> run
 ```
+
+## AOT native kernel
+
+This example also runs a Ruby kernel as native AOT code next to the interpreted
+version, to benchmark the two. `bench_tick` (`aot-kernel/bench_tick.{rb,rbs}`) is
+compiled to native by matz's [spinel](https://github.com/matz/spinel) and wrapped
+into the `picoruby-bench_tick` mrbgem by
+[bash0C7/suppify](https://github.com/bash0C7/suppify). The seed in
+`Sources/ContentView.swift` parity-checks interpreted vs native, then sweeps the
+per-call batch size `n`. On a real iPhone 16e the native version reaches ~50× once
+each call does enough work to amortize the VM boundary cost (VM dispatch + arg
+check + spinel's `setjmp`); the interpreter stays roughly flat.
+
+The generated gem `picoruby-bench_tick/` is **not committed** — it is gitignored
+and regenerated from the kernel source, the way `vendor/picoruby` is fetched.
+spinel and suppify are external tools, discovered like `cc`:
+
+```
+cd aot-kernel
+SPINEL=/path/to/spinel/spinel SPINEL_LIB=/path/to/spinel/lib \
+  ruby /path/to/suppify/suppify.rb bench_tick.rb -o bench_tick -t picoruby -d ..
+#   -> ../picoruby-bench_tick/
+```
+
+Generation is deterministic for a given spinel/suppify version, so the gem is a
+reproducible build product, not source. The build_config wires it in with one
+`conf.gem` line, so `rake ios:repl:lib` needs the gem regenerated first. Full
+apply-and-embed procedure: the `aot-embed` skill (`.claude/skills/aot-embed/`).
 
 ## Known constraints
 
